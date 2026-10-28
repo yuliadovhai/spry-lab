@@ -11,12 +11,12 @@ Description: >-
 Parameters:
   ProjectName:
     Type: String
-    Default: peach
+    Default: spry
     Description: Scopes what the role is allowed to touch.
 
   GitHubRepo:
     Type: String
-    Description: owner/repo, e.g. dobosevych/Peach
+    Description: owner/repo, e.g. yuliadovhai/spry-lab
     AllowedPattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
 
   SubjectClaim:

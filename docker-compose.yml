@@ -1,23 +1,23 @@
-name: peach
+name: spry
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-peach}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-peach}
-      POSTGRES_DB: ${POSTGRES_DB:-peach}
+      POSTGRES_USER: ${POSTGRES_USER:-spry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spry}
+      POSTGRES_DB: ${POSTGRES_DB:-spry}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-peach} -d ${POSTGRES_DB:-peach}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spry} -d ${POSTGRES_DB:-spry}"]
       interval: 5s
       timeout: 5s
       retries: 10
-    networks: [peach]
+    networks: [spry]
 
   backend:
     build:
@@ -27,14 +27,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://peach:peach@db:5432/peach}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://spry:spry@db:5432/spry}
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      # From make deploy-cognito. Unset, every /api/v1 route answers 503.
-      COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
-      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
-      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:
@@ -43,17 +39,13 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
-    networks: [peach]
+    networks: [spry]
 
   frontend:
     build:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-        NEXT_PUBLIC_COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
-        NEXT_PUBLIC_COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-        NEXT_PUBLIC_COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
-        NEXT_PUBLIC_COGNITO_GOOGLE_ENABLED: ${COGNITO_GOOGLE_ENABLED:-false}
     restart: unless-stopped
     depends_on:
       backend:
@@ -61,18 +53,14 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:8000}
-      NEXT_PUBLIC_COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
-      NEXT_PUBLIC_COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-      NEXT_PUBLIC_COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
-      NEXT_PUBLIC_COGNITO_GOOGLE_ENABLED: ${COGNITO_GOOGLE_ENABLED:-false}
       NODE_ENV: production
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    networks: [peach]
+    networks: [spry]
 
 volumes:
   pgdata:
 
 networks:
-  peach:
+  spry:
     driver: bridge

@@ -56,7 +56,7 @@ jobs:
         if: always()
         run: |
           API_URL=$(aws cloudformation describe-stacks \
-            --stack-name "${PROJECT_NAME:-peach}-backend" \
+            --stack-name "${PROJECT_NAME:-spry}-backend" \
             --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
             --output text 2>/dev/null || echo "unknown")
           {

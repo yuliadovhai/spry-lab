@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >-
-  Peach frontend on CloudFront: a private S3 bucket holding the Next.js static
+  Spry frontend on CloudFront: a private S3 bucket holding the Next.js static
   export, reachable only through the distribution. Deployed by
   scripts/deploy-frontend.sh, which builds the site and syncs it into the bucket.
 
@@ -17,7 +17,7 @@ Description: >-
 Parameters:
   ProjectName:
     Type: String
-    Default: peach
+    Default: spry
 
   DefaultRootObject:
     Type: String

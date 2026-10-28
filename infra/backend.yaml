@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >-
-  Peach backend on AWS Lambda: the FastAPI app in a container image, served over
+  Spry backend on AWS Lambda: the FastAPI app in a container image, served over
   HTTPS by a Lambda function URL, with Postgres on Aurora Serverless v2 that
   pauses to zero ACUs when idle. Deployed by scripts/deploy-backend.sh, which
   builds and pushes the image first - the ECR repository lives outside this
@@ -17,7 +17,7 @@ Description: >-
 Parameters:
   ProjectName:
     Type: String
-    Default: peach
+    Default: spry
     Description: Prefix for every resource name, and the project tag.
 
   VpcId:
@@ -33,7 +33,7 @@ Parameters:
 
   ImageUri:
     Type: String
-    Description: Fully qualified image, e.g. <account>.dkr.ecr.<region>.amazonaws.com/peach-backend:abc1234
+    Description: Fully qualified image, e.g. <account>.dkr.ecr.<region>.amazonaws.com/spry-backend:abc1234
 
   Architecture:
     Type: String
@@ -58,11 +58,11 @@ Parameters:
 
   DbName:
     Type: String
-    Default: peach
+    Default: spry
 
   DbUsername:
     Type: String
-    Default: peach
+    Default: spry
 
   DbPassword:
     Type: String

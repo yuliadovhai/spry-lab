@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { getIdToken, signOut } from "@/lib/auth";
-
 /** Browser code must reach the API through the published port; server components
  *  resolve the Compose service name instead. */
 export function apiBaseUrl(): string {
@@ -21,15 +19,24 @@ export class ApiError extends Error {
   }
 }
 
+/** FastAPI's 422 carries a list of problems; turn it into one readable line. */
+function errorDetail(body: unknown): string | null {
+  const detail = (body as { detail?: unknown } | null)?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entry) => (entry as { msg?: unknown })?.msg)
+      .filter((msg): msg is string => typeof msg === "string");
+    if (messages.length > 0) return messages.join("; ");
+  }
+  return null;
+}
+
 async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   init?: RequestInit,
 ): Promise<T> {
-  // Every API route needs a signed-in user; don't send what would bounce.
-  const token = await getIdToken();
-  if (!token) throw new ApiError(401, "You are signed out");
-
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
@@ -37,7 +44,6 @@ async function request<T>(
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
         ...(init?.headers ?? {}),
       },
     });
@@ -45,14 +51,10 @@ async function request<T>(
     throw new ApiError(0, "Could not reach the API");
   }
 
-  // The API no longer accepts this session (revoked, or the pool changed):
-  // drop it, and the auth gate sends the user back to the login page.
-  if (response.status === 401) signOut();
-
   if (!response.ok) {
     const detail = await response
       .json()
-      .then((body) => (typeof body?.detail === "string" ? body.detail : null))
+      .then(errorDetail)
       .catch(() => null);
     throw new ApiError(
       response.status,
@@ -60,28 +62,22 @@ async function request<T>(
     );
   }
 
-  if (response.status === 204) {
-    return schema.parse(undefined);
-  }
   return schema.parse(await response.json());
 }
 
-/* --- schemas mirroring the API contract in README section 5 --- */
+/* --- schemas mirroring the API contract in PROJECT.md --- */
 
-export const itemStatuses = ["todo", "in_progress", "done"] as const;
-export const itemStatusSchema = z.enum(itemStatuses);
-
-export const itemSchema = z.object({
+export const meetingSchema = z.object({
   id: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  status: itemStatusSchema,
+  title: z.string(),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  attendee_count: z.number().int(),
   created_at: z.string(),
-  updated_at: z.string(),
 });
 
-export const itemListSchema = z.object({
-  items: z.array(itemSchema),
+export const meetingListSchema = z.object({
+  meetings: z.array(meetingSchema),
   total: z.number().int(),
 });
 
@@ -90,43 +86,33 @@ export const healthSchema = z.object({
   database: z.string(),
 });
 
-export const itemInputSchema = z.object({
-  name: z.string().min(1, "Name is required").max(120, "Name is too long"),
-  description: z.string().max(2000, "Description is too long").optional(),
-  status: itemStatusSchema,
-});
+export type Meeting = z.infer<typeof meetingSchema>;
+export type MeetingList = z.infer<typeof meetingListSchema>;
 
-export type ItemStatus = z.infer<typeof itemStatusSchema>;
-export type Item = z.infer<typeof itemSchema>;
-export type ItemList = z.infer<typeof itemListSchema>;
-export type Health = z.infer<typeof healthSchema>;
-export type ItemInput = z.infer<typeof itemInputSchema>;
+/** What POST /api/v1/meetings accepts. Times are ISO 8601 with an offset. */
+export type MeetingCreate = {
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  attendee_count: number;
+};
 
 /* --- endpoints --- */
 
 export const api = {
   readiness: () => request("/api/v1/health/ready", healthSchema),
 
-  listItems: (params: { limit?: number; offset?: number } = {}) => {
+  listMeetings: (params: { limit?: number; offset?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.limit !== undefined) query.set("limit", String(params.limit));
     if (params.offset !== undefined) query.set("offset", String(params.offset));
     const suffix = query.size > 0 ? `?${query}` : "";
-    return request(`/api/v1/items${suffix}`, itemListSchema);
+    return request(`/api/v1/meetings${suffix}`, meetingListSchema);
   },
 
-  createItem: (payload: ItemInput) =>
-    request("/api/v1/items", itemSchema, {
+  createMeeting: (payload: MeetingCreate) =>
+    request("/api/v1/meetings", meetingSchema, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-
-  updateItem: (id: string, payload: Partial<ItemInput>) =>
-    request(`/api/v1/items/${id}`, itemSchema, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    }),
-
-  deleteItem: (id: string) =>
-    request(`/api/v1/items/${id}`, z.undefined(), { method: "DELETE" }),
 };

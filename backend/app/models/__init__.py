@@ -1,4 +1,3 @@
-from app.models.item import Item
-from app.models.user import User
+from app.models.meeting import Meeting
 
-__all__ = ["Item", "User"]
+__all__ = ["Meeting"]

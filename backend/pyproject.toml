@@ -1,7 +1,7 @@
 [project]
-name = "peach-backend"
+name = "spry-backend"
 version = "0.1.0"
-description = "Peach API"
+description = "Spry API"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.118",
