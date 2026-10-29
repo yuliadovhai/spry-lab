@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # Put a custom domain, with HTTPS, on the deployed frontend's CloudFront
-# distribution. Only the frontend gets a custom domain - the API stays on its
-# Lambda function URL - and it is assigned here, separately from
-# `make deploy-frontend`, which never touches the domain settings.
+# distribution - or, with DOMAIN_TARGET=api, on the API. A Lambda function URL
+# cannot carry a domain, so for the API this switches on the CloudFront
+# distribution infra/backend.yaml keeps in front of the function URL.
+# Domains are assigned here, separately from the deploy scripts, which never
+# touch the domain settings.
 #
 #   scripts/domain-frontend.sh cert     request + DNS-validate an ACM certificate
 #   scripts/domain-frontend.sh domain   the above, then attach it to the distribution
+#
+#   make domain     DOMAIN=app.example.com    the frontend
+#   make domain-api DOMAIN=api.example.com    the API
 #
 # Both are idempotent: an existing certificate for the domain is reused rather
 # than re-requested, and re-running after DNS is in place just re-checks.
@@ -43,16 +48,28 @@ for var in AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 done
 
 PROJECT_NAME="${PROJECT_NAME:-spry}"
-STACK_NAME="${FRONTEND_STACK_NAME:-${PROJECT_NAME}-frontend}"
+TARGET="${DOMAIN_TARGET:-frontend}"
+case "${TARGET}" in
+  frontend)
+    STACK_NAME="${FRONTEND_STACK_NAME:-${PROJECT_NAME}-frontend}"
+    DOMAIN_KEY=DOMAIN_NAME
+    ;;
+  api)
+    STACK_NAME="${STACK_NAME:-${PROJECT_NAME}-backend}"
+    TEMPLATE="${ROOT}/infra/backend.yaml"
+    DOMAIN_KEY=API_DOMAIN_NAME
+    ;;
+  *) die "DOMAIN_TARGET must be frontend or api, got '${TARGET}'" ;;
+esac
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 export AWS_DEFAULT_REGION="${AWS_REGION}"
 # CloudFront only takes certificates from us-east-1, whatever the stack region.
 ACM_REGION=us-east-1
 
 # `make domain DOMAIN=app.example.com` wins over whatever .env remembers.
-DOMAIN="${DOMAIN:-${DOMAIN_NAME:-}}"
+DOMAIN="${DOMAIN:-${!DOMAIN_KEY:-}}"
 DOMAIN="${DOMAIN%.}"
-[[ -n "${DOMAIN}" ]] || die "no domain - run: make ${MODE} DOMAIN=app.example.com"
+[[ -n "${DOMAIN}" ]] || die "no domain - run: make domain DOMAIN=app.example.com (or domain-api)"
 
 for tool in aws python3; do
   command -v "${tool}" >/dev/null 2>&1 || die "${tool} is required but not installed"
@@ -180,11 +197,16 @@ JSON
       --hosted-zone-id "${ZONE_ID}" \
       --change-batch "file://${CHANGE_FILE}" >/dev/null
   else
+    # Registrars' DNS screens (Porkbun, Namecheap...) want the host part only,
+    # without the registered domain, which they append themselves.
+    APEX="$(echo "${DOMAIN}" | awk -F. '{print $(NF-1)"."$NF}')"
+    HOST="${RECORD_NAME%.}"
+    HOST="${HOST%."${APEX}"}"
     echo
     echo "  Add this record wherever ${DOMAIN} is hosted, then leave this running:"
     echo
-    echo "    name   ${RECORD_NAME}"
     echo "    type   ${RECORD_TYPE}"
+    echo "    host   ${HOST}        (full name: ${RECORD_NAME})"
     echo "    value  ${RECORD_VALUE}"
     echo
   fi
@@ -208,29 +230,37 @@ fi
 log "certificate issued"
 # Only the domain is remembered. The zone and the certificate are looked up
 # again on every run, so neither needs to live in .env.
-env_set DOMAIN_NAME "${DOMAIN}"
+env_set "${DOMAIN_KEY}" "${DOMAIN}"
 
 if [[ "${MODE}" == "cert" ]]; then
   echo
-  echo "Certificate ready. Attach it with: make domain"
+  echo "Certificate ready. Attach it with: make domain (or make domain-api)"
   exit 0
 fi
 
 # --- attach -----------------------------------------------------------------
 
 # Only the domain parameters change; every other parameter keeps the stack's
-# current value, and the site itself is not rebuilt.
+# current value, and nothing is rebuilt.
 aws cloudformation describe-stacks --stack-name "${STACK_NAME}" >/dev/null 2>&1 \
-  || die "stack ${STACK_NAME} does not exist yet - run make deploy-frontend first"
+  || die "stack ${STACK_NAME} does not exist yet - run make deploy-${TARGET/api/backend} first"
 
-log "attaching ${DOMAIN} to the distribution (CloudFront takes a few minutes)"
+if [[ "${TARGET}" == "frontend" ]]; then
+  PARAMS=("DomainName=${DOMAIN}" "AcmCertificateArn=${CERT_ARN}" "HostedZoneId=${ZONE_ID}")
+  CAPABILITIES=()
+  TARGET_OUTPUT=DistributionDomainName
+else
+  PARAMS=("ApiDomainName=${DOMAIN}" "ApiCertificateArn=${CERT_ARN}")
+  CAPABILITIES=(--capabilities CAPABILITY_IAM)
+  TARGET_OUTPUT=ApiDistributionDomainName
+fi
+
+log "attaching ${DOMAIN} to CloudFront (this takes a few minutes)"
 if ! aws cloudformation deploy \
   --stack-name "${STACK_NAME}" \
   --template-file "${TEMPLATE}" \
-  --parameter-overrides \
-    "DomainName=${DOMAIN}" \
-    "AcmCertificateArn=${CERT_ARN}" \
-    "HostedZoneId=${ZONE_ID}" \
+  --parameter-overrides "${PARAMS[@]}" \
+  ${CAPABILITIES[@]+"${CAPABILITIES[@]}"} \
   --no-fail-on-empty-changeset \
   --tags "PROJECT_NAME=${PROJECT_NAME}"; then
   warn "deploy failed - most recent failure reasons:"
@@ -241,26 +271,47 @@ if ! aws cloudformation deploy \
   exit 1
 fi
 
-TARGET="$(stack_output DistributionDomainName)"
+TARGET_HOST="$(stack_output "${TARGET_OUTPUT}")"
+
+# The frontend stack owns its Route 53 alias record; the API's is written here.
+if [[ "${TARGET}" == "api" && -n "${ZONE_ID}" ]]; then
+  log "pointing ${DOMAIN} at ${TARGET_HOST} in Route 53"
+  CNAME_FILE="$(mktemp)"
+  cat >"${CNAME_FILE}" <<JSON
+{"Changes":[{"Action":"UPSERT","ResourceRecordSet":{
+  "Name":"${DOMAIN}","Type":"CNAME","TTL":300,
+  "ResourceRecords":[{"Value":"${TARGET_HOST}"}]}}]}
+JSON
+  aws route53 change-resource-record-sets \
+    --hosted-zone-id "${ZONE_ID}" --change-batch "file://${CNAME_FILE}" >/dev/null
+  rm -f "${CNAME_FILE}"
+fi
 
 if [[ -z "${ZONE_ID}" ]]; then
   echo
   if [[ "${DOMAIN}" == *.*.* ]]; then
+    APEX="$(echo "${DOMAIN}" | awk -F. '{print $(NF-1)"."$NF}')"
     echo "  Last step - point ${DOMAIN} at CloudFront:"
     echo
-    echo "    name   ${DOMAIN}"
     echo "    type   CNAME"
-    echo "    value  ${TARGET}"
+    echo "    host   ${DOMAIN%."${APEX}"}        (full name: ${DOMAIN})"
+    echo "    value  ${TARGET_HOST}"
   else
-    echo "  Last step - point ${DOMAIN} at ${TARGET}."
+    echo "  Last step - point ${DOMAIN} at ${TARGET_HOST}."
     warn "${DOMAIN} is a zone apex, which cannot be a CNAME. Either move the"
     warn "zone to Route 53 and re-run, or use your provider's ALIAS/ANAME record."
   fi
   echo
 fi
 
-echo "  https://${DOMAIN} - the cloudfront.net name keeps working too"
-echo
-echo "Let the API accept the new origin:"
-echo
-echo "  API_CORS_ORIGINS=https://${DOMAIN}   in .env, then: make deploy-backend"
+if [[ "${TARGET}" == "frontend" ]]; then
+  echo "  https://${DOMAIN} - the cloudfront.net name keeps working too"
+  echo
+  echo "Let the API accept the new origin - add it to API_CORS_ORIGINS in .env"
+  echo "(comma-separated), then: make deploy-backend"
+else
+  env_set BACKEND_URL "https://${DOMAIN}"
+  echo "  https://${DOMAIN} - the function URL keeps working too"
+  echo
+  echo "Rebuild the site against the new API address: make deploy-frontend"
+fi

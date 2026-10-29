@@ -336,6 +336,11 @@ fi
 
 API_URL="$(outputs ApiUrl)"
 API_URL="${API_URL%/}"
+# With a custom domain attached (make domain-api), that is the public address.
+CUSTOM_API_URL="$(outputs CustomApiUrl 2>/dev/null || true)"
+if [[ -n "${CUSTOM_API_URL}" && "${CUSTOM_API_URL}" != "None" ]]; then
+  API_URL="${CUSTOM_API_URL%/}"
+fi
 
 # deploy-frontend.sh compiles the bundle against this.
 env_set BACKEND_URL "${API_URL}"

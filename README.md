@@ -98,8 +98,12 @@ the connection string comes in as the `DATABASE_URL` environment variable. The p
 generated on the first deploy, kept in the `spry/backend/database-url` secret, and read back
 from there on later deploys rather than rotated.
 
-**No custom domain on the backend.** The API answers on its
-`https://<id>.lambda-url.us-east-1.on.aws` name. Only the frontend gets a custom domain (see below).
+**A custom domain on the backend too.** A function URL cannot carry a domain, so
+`make domain-api DOMAIN=api.example.com` switches on a CloudFront distribution in front of it
+(`ApiDistribution` in `infra/backend.yaml`): an ACM certificate from us-east-1, nothing cached,
+every header including `Authorization` passed through, and `Host` rewritten to the function URL's
+own name. It then writes `BACKEND_URL=https://api.example.com` to `.env`; rebuild the site with
+`make deploy-frontend` so it calls the API there. Later `make deploy-backend` runs keep the domain.
 
 **What it costs.**
 
@@ -114,7 +118,8 @@ from there on later deploys rather than rotated.
 
 ```bash
 make deploy-frontend                  # build the static export against BACKEND_URL -> S3 -> CloudFront
-make domain DOMAIN=app.example.com    # assign a custom domain, separately
+make domain DOMAIN=app.example.com    # assign a custom domain to the site, separately
+make domain-api DOMAIN=api.example.com  # and to the API
 make cert   DOMAIN=app.example.com    # just the certificate half
 make destroy-frontend                 # delete the bucket and the distribution
 ```

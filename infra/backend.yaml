@@ -13,8 +13,10 @@ Description: >-
   private inside the VPC. Lambda bills per request; the instance is covered by
   the free tier's monthly hours.
 
-  No custom domain: the API is served on the function URL's own HTTPS name.
-  Only the frontend takes a custom domain.
+  Optionally on a custom domain (make domain-api DOMAIN=api.example.com): a
+  function URL cannot carry one, so a CloudFront distribution with the domain
+  and an ACM certificate sits in front of it and passes every request through
+  uncached. Without a domain the API answers on the function URL's own name.
 
 Parameters:
   ProjectName:
@@ -131,10 +133,30 @@ Parameters:
       The pool's public signing keys, as JSON. The function has no internet
       route to fetch them, so the deploy script downloads and passes them in.
 
+  ApiDomainName:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional custom domain for the API, e.g. api.example.com. Managed by
+      scripts/domain-frontend.sh (make domain-api).
+
+  ApiCertificateArn:
+    Type: String
+    Default: ""
+    Description: >-
+      ACM certificate for ApiDomainName. CloudFront only accepts certificates
+      from us-east-1.
+
   LogRetentionDays:
     Type: Number
     Default: 7
     Description: CloudWatch gives 5 GB of ingestion and storage free each month.
+
+Conditions:
+  # A domain without a certificate is ignored rather than half-applied.
+  HasApiDomain: !And
+    - !Not [!Equals [!Ref ApiDomainName, ""]]
+    - !Not [!Equals [!Ref ApiCertificateArn, ""]]
 
 Resources:
   # --- networking ---------------------------------------------------------
@@ -320,12 +342,84 @@ Resources:
       Principal: "*"
       InvokedViaFunctionUrl: true
 
+  # --- custom domain (optional) ---------------------------------------------
+
+  # Nothing from the API may be served from a cache, and the Authorization
+  # header must reach the function. A header can only be forwarded through a
+  # cache policy, and a policy with headers must allow some TTL, hence MaxTTL
+  # 1: responses without Cache-Control (all of ours) are still never cached.
+  ApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Condition: HasApiDomain
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ProjectName}-api-passthrough"
+        Comment: Never cache; forward Authorization to the origin
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 1
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers: [Authorization]
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasApiDomain
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${ProjectName} api"
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        Aliases: [!Ref ApiDomainName]
+        ViewerCertificate:
+          AcmCertificateArn: !Ref ApiCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: function-url
+            DomainName: !Select [2, !Split ["/", !GetAtt FunctionUrl.FunctionUrl]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: function-url
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: !Ref ApiCachePolicy
+          # Managed-AllViewerExceptHostHeader: every header, query string and
+          # cookie goes through, but Host becomes the function URL's own name,
+          # which is the only one a function URL answers to.
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
 Outputs:
   ApiUrl:
     Description: Base URL of the backend, with no trailing slash.
     Value: !Sub
       - "https://${Host}"
       - Host: !Select [2, !Split ["/", !GetAtt FunctionUrl.FunctionUrl]]
+
+  CustomApiUrl:
+    Condition: HasApiDomain
+    Description: The API on its custom domain.
+    Value: !Sub "https://${ApiDomainName}"
+
+  ApiDistributionDomainName:
+    Condition: HasApiDomain
+    Description: Point ApiDomainName at this with a CNAME.
+    Value: !GetAtt ApiDistribution.DomainName
 
   FunctionName:
     Value: !Ref Function

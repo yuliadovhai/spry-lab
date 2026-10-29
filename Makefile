@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain deploy-frontend destroy-frontend github-role
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -69,6 +69,9 @@ cert: ## Request + DNS-validate a us-east-1 certificate for the frontend: make c
 
 domain: ## Assign a custom domain to the frontend: make domain DOMAIN=app.example.com
 	./scripts/domain-frontend.sh domain
+
+domain-api: ## Assign a custom domain to the API: make domain-api DOMAIN=api.example.com
+	DOMAIN_TARGET=api ./scripts/domain-frontend.sh domain
 
 deploy-frontend: ## Build the static export against BACKEND_URL and ship it to S3 + CloudFront
 	./scripts/deploy-frontend.sh
