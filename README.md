@@ -65,7 +65,7 @@ make destroy-backend     # delete everything, database included
 `infra/backend.yaml` is the whole architecture in one CloudFormation stack:
 
 ```
-internet -> Lambda function URL (HTTPS) -> Lambda (FastAPI via Mangum, in the VPC) -> Aurora Serverless v2 :5432
+internet -> Lambda function URL (HTTPS) -> Lambda (FastAPI via Mangum, in the VPC) -> RDS PostgreSQL :5432
 ```
 
 `scripts/deploy-backend.sh` drives it, in order:
@@ -82,16 +82,17 @@ internet -> Lambda function URL (HTTPS) -> Lambda (FastAPI via Mangum, in the VP
 **Before the first run** put your credentials in `.env` (`AWS_PROFILE` works instead of static
 keys). Everything else is optional: left blank, the script uses the default VPC and its subnets,
 skipping AZs Lambda cannot use (`use1-az3`). The first deploy takes about ten minutes, almost all
-of it Aurora.
+of it the database. A first deploy that failed is cleaned up automatically on the next run.
 
-**Aurora scales to zero.** The cluster runs Aurora PostgreSQL 17.4 on one `db.serverless` instance
-with `MinCapacity: 0`: after `DB_SECONDS_UNTIL_AUTO_PAUSE` (300 s) without connections it pauses and
-bills only storage. The first request after a pause waits ~15 s while it resumes, well inside the
-function's 30 s timeout. For it to pause at all nothing may hold a connection, so on Lambda the app
-runs with `DB_POOLING=false` (SQLAlchemy `NullPool`): each request opens and closes its own
-connection instead of a warm environment keeping one open.
+**RDS, not Aurora.** The database is one `db.t4g.micro` RDS PostgreSQL 17 instance with 20 GiB of
+gp2 storage, private to the VPC. On the AWS **Free account plan** Aurora is offered only through
+"express configuration", which lives outside any VPC and accepts IAM tokens only; `db.t4g.micro`
+RDS is in the free tier and keeps the original shape — function and database in the same VPC,
+the database unreachable from the internet. On Lambda the app runs with `DB_POOLING=false`
+(SQLAlchemy `NullPool`): each request opens and closes its own connection, so warm execution
+environments cannot exhaust the small instance's connection limit.
 
-**No NAT gateway.** The function sits in the VPC only to reach Aurora and needs nothing from the
+**No NAT gateway.** The function sits in the VPC only to reach the database and needs nothing from the
 internet, so the default subnets do. The flip side is that it cannot reach Secrets Manager, so
 the connection string comes in as the `DATABASE_URL` environment variable. The password is
 generated on the first deploy, kept in the `spry/backend/database-url` secret, and read back
@@ -105,7 +106,7 @@ from there on later deploys rather than rotated.
 | | Idle | Per use |
 |---|---|---|
 | Lambda (512 MB, arm64) | $0 | free tier: 1M requests + 400k GB-s a month |
-| Aurora Serverless v2 | storage only, ~$0.10/GB-month | ~$0.12 per ACU-hour while awake (max 1 ACU) |
+| RDS `db.t4g.micro` + 20 GiB | free tier on the Free plan; about $14/month on pay-as-you-go | — |
 | Secrets Manager (one secret) | $0.40 | — |
 | ECR, CloudWatch Logs | ~$0 at this size | — |
 

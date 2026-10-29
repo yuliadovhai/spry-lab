@@ -2,14 +2,16 @@ AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >-
   Spry backend on AWS Lambda: the FastAPI app in a container image, served over
-  HTTPS by a Lambda function URL, with Postgres on Aurora Serverless v2 that
-  pauses to zero ACUs when idle. Deployed by scripts/deploy-backend.sh, which
-  builds and pushes the image first - the ECR repository lives outside this
-  stack because the function cannot be created until an image exists.
+  HTTPS by a Lambda function URL, with PostgreSQL on a single db.t4g.micro RDS
+  instance in the same VPC. Deployed by scripts/deploy-backend.sh, which builds
+  and pushes the image first - the ECR repository lives outside this stack
+  because the function cannot be created until an image exists.
 
-  Idle, this costs Aurora storage and nothing else: Lambda bills per request,
-  and the cluster pauses after SecondsUntilAutoPause without connections. The
-  first request after a pause waits roughly 15 seconds for it to resume.
+  Why RDS and not Aurora: on the AWS Free account plan Aurora is only offered
+  through "express configuration" (no VPC, IAM-token auth only), while
+  db.t4g.micro RDS PostgreSQL is in the free tier and keeps the database
+  private inside the VPC. Lambda bills per request; the instance is covered by
+  the free tier's monthly hours.
 
   No custom domain: the API is served on the function URL's own HTTPS name.
   Only the frontend takes a custom domain.
@@ -54,7 +56,7 @@ Parameters:
     MinValue: 3
     MaxValue: 900
     Description: >-
-      Leaves room for Aurora to resume from a pause (about 15 seconds).
+      Seconds before a request is cut off. 30 leaves room for a cold start.
 
   DbName:
     Type: String
@@ -74,29 +76,21 @@ Parameters:
 
   DbEngineVersion:
     Type: String
-    Default: "17.4"
-    Description: >-
-      Aurora PostgreSQL version. Scaling to zero needs 17.4+, 16.3+, 15.7+,
-      14.12+ or 13.15+.
+    Default: "17"
+    Description: RDS PostgreSQL major version; RDS picks the current minor.
 
-  DbMinCapacity:
-    Type: Number
-    Default: 0
-    MinValue: 0
-    Description: ACUs. 0 lets the cluster pause when nothing is connected.
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t3.micro]
+    Description: The free-tier instance classes.
 
-  DbMaxCapacity:
+  DbAllocatedStorage:
     Type: Number
-    Default: 1
-    MinValue: 1
-    Description: ACUs. The ceiling on what a traffic spike can cost.
-
-  DbSecondsUntilAutoPause:
-    Type: Number
-    Default: 300
-    MinValue: 300
-    MaxValue: 86400
-    Description: Idle time, with no connections, before the cluster pauses.
+    Default: 20
+    MinValue: 20
+    MaxValue: 100
+    Description: GiB of gp2 storage. 20 is the free-tier allowance.
 
   DbBackupRetentionDays:
     Type: Number
@@ -184,44 +178,31 @@ Resources:
         - Key: PROJECT_NAME
           Value: !Ref ProjectName
 
-  # A starter database: one serverless instance, never reachable from the
-  # internet, and torn down with the stack. Turn on DeletionProtection before
-  # this holds anything you would miss.
-  DbCluster:
-    Type: AWS::RDS::DBCluster
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Properties:
-      DBClusterIdentifier: !Sub "${ProjectName}-db"
-      Engine: aurora-postgresql
-      EngineVersion: !Ref DbEngineVersion
-      DatabaseName: !Ref DbName
-      MasterUsername: !Ref DbUsername
-      MasterUserPassword: !Ref DbPassword
-      DBSubnetGroupName: !Ref DbSubnetGroup
-      VpcSecurityGroupIds: [!Ref DbSecurityGroup]
-      StorageEncrypted: true
-      BackupRetentionPeriod: !Ref DbBackupRetentionDays
-      CopyTagsToSnapshot: true
-      DeletionProtection: false
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: !Ref DbMinCapacity
-        MaxCapacity: !Ref DbMaxCapacity
-        SecondsUntilAutoPause: !Ref DbSecondsUntilAutoPause
-      Tags:
-        - Key: PROJECT_NAME
-          Value: !Ref ProjectName
-
-  DbInstance:
+  # A starter database: one small instance, never reachable from the internet,
+  # and torn down with the stack. Turn on DeletionProtection before this holds
+  # anything you would miss.
+  Db:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      DBInstanceIdentifier: !Sub "${ProjectName}-db-1"
-      DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: db.serverless
-      Engine: aurora-postgresql
+      DBInstanceIdentifier: !Sub "${ProjectName}-db"
+      Engine: postgres
+      EngineVersion: !Ref DbEngineVersion
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: !Ref DbAllocatedStorage
+      StorageType: gp2
+      StorageEncrypted: true
+      DBName: !Ref DbName
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
       PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: !Ref DbBackupRetentionDays
+      CopyTagsToSnapshot: true
+      DeletionProtection: false
       AutoMinorVersionUpgrade: true
       EnablePerformanceInsights: false
       Tags:
@@ -239,8 +220,8 @@ Resources:
       Description: !Sub "SQLAlchemy async connection string for ${ProjectName}"
       SecretString: !Sub
         - "postgresql+asyncpg://${DbUsername}:${DbPassword}@${Endpoint}:${Port}/${DbName}"
-        - Endpoint: !GetAtt DbCluster.Endpoint.Address
-          Port: !GetAtt DbCluster.Endpoint.Port
+        - Endpoint: !GetAtt Db.Endpoint.Address
+          Port: !GetAtt Db.Endpoint.Port
       Tags:
         - Key: PROJECT_NAME
           Value: !Ref ProjectName
@@ -276,8 +257,8 @@ Resources:
 
   Function:
     Type: AWS::Lambda::Function
-    # Aurora has to have an instance before a request can use the cluster.
-    DependsOn: DbInstance
+    # The function is useless until the database it connects to exists.
+    DependsOn: Db
     Properties:
       FunctionName: !Sub "${ProjectName}-backend"
       Description: !Sub "${ProjectName} FastAPI backend"
@@ -303,12 +284,12 @@ Resources:
           COGNITO_CLIENT_ID: !Ref CognitoClientId
           COGNITO_JWKS: !Ref CognitoJwks
           # No pool: warm but idle environments would keep connections open,
-          # and Aurora only pauses once there are none.
+          # and a db.t4g.micro allows only a few dozen connections.
           DB_POOLING: "false"
           DATABASE_URL: !Sub
             - "postgresql+asyncpg://${DbUsername}:${DbPassword}@${Endpoint}:${Port}/${DbName}"
-            - Endpoint: !GetAtt DbCluster.Endpoint.Address
-              Port: !GetAtt DbCluster.Endpoint.Port
+            - Endpoint: !GetAtt Db.Endpoint.Address
+              Port: !GetAtt Db.Endpoint.Port
       Tags:
         - Key: PROJECT_NAME
           Value: !Ref ProjectName
@@ -350,7 +331,7 @@ Outputs:
     Value: !Ref Function
 
   DatabaseEndpoint:
-    Value: !GetAtt DbCluster.Endpoint.Address
+    Value: !GetAtt Db.Endpoint.Address
 
   DatabaseUrlSecretArn:
     Value: !Ref DatabaseUrlSecret
