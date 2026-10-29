@@ -28,3 +28,12 @@ out/
 
 # --- docker ---
 pgdata/
+
+# --- terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+generated.tf

@@ -250,12 +250,51 @@ The frontend is not wired to CI — `make deploy-frontend` stays a local command
 ```bash
 make llm-hello                      # one question to the model, from this laptop (Docker)
 make parse TEXT="Пн 10:00, синк..." # the parser on a piece of text, from this laptop
-BUDGET_EMAIL=you@example.com make deploy-ai   # parser Lambda + function URL + $5 budget
-make deploy-backend                 # migration 0002: agenda + ai_suggestion
-make deploy-frontend                # compiles PARSER_URL into the site
+make deploy-ai                      # ship new parser code (the infrastructure is Terraform's)
 make logs-ai                        # model, prompt version, tokens, latency, cost per parse
 ```
 
-`PARSER_MODEL=anthropic.claude-haiku-5-5 make deploy-ai` switches the model; any non-Anthropic id
-(e.g. `us.amazon.nova-micro-v1:0`) goes through the Converse API. Design and trade-offs:
+The model is `parser_model` in `infra/terraform.tfvars`: change it in a pull request. `anthropic.*`
+ids go through the Anthropic Messages API, anything else (e.g. `us.amazon.nova-micro-v1:0`) through
+the Converse API. Design and trade-offs:
 [ADR 0006](docs/adr/0006-llm-agenda-parsing.md); report template: [docs/lab6-report.md](docs/lab6-report.md).
+
+## Infrastructure as code (Lab 7)
+
+The parser's infrastructure (Lab 6) is Terraform in `infra/*.tf`, with its state and runs in
+**HCP Terraform**: organization `ooad-yuliadovhai`, workspace `spry-dev`. Why, and what it
+means: [ADR 0007](docs/adr/0007-terraform.md). The course template's stacks
+(`infra/backend.yaml`, `frontend.yaml`, `github-oidc.yaml`) are still CloudFormation.
+
+**Changing infrastructure:** edit `infra/`, open a pull request, read the plan in the HCP Terraform
+check, merge. HCP Terraform applies it with temporary AWS credentials (OIDC); nobody needs keys.
+The Makefile has no `apply` on purpose.
+
+```bash
+terraform login        # once: an HCP Terraform token for this laptop
+make infra-init        # connect infra/ to the workspace
+make infra-plan        # a speculative plan of your local changes, run in HCP Terraform
+make infra-outputs     # PARSER_URL from the state into .env
+```
+
+**Two roads.** Terraform owns the parser's configuration; `make deploy-ai` owns its code. When a
+change needs both (say, a new environment variable the new code reads), merge the infrastructure
+first, then deploy the code that uses it.
+
+**Setting it up from nothing** (done once; kept for the record):
+
+```bash
+# 1. Sign up at app.terraform.io, create the organization ooad-yuliadovhai, then:
+terraform login
+# 2. AWS trusts HCP Terraform, the workspace and its variables (local state, git-ignored):
+terraform -chdir=infra-bootstrap init
+terraform -chdir=infra-bootstrap apply -var budget_email=you@example.com
+# 3. Adopt what CloudFormation created, without re-creating it:
+scripts/tf-adopt.sh            # real IDs -> infra/imports.tf + infra/terraform.tfvars
+scripts/tf-release-cfn.sh      # DeletionPolicy: Retain, then delete the stack
+make infra-init && make infra-plan   # until: N to import, 2 to add, 0 to change, 0 to destroy
+terraform -chdir=infra apply   # the one apply from a laptop, before VCS is connected
+scripts/tf-cleanup-permissions.sh    # drop the old CloudFormation permission statements
+make infra-plan                # No changes. Your infrastructure matches the configuration.
+# 4. Delete infra/imports.tf, connect the workspace to GitHub (Settings -> Version Control).
+```

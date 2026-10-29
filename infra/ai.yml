@@ -43,6 +43,9 @@ Conditions:
 Resources:
   Role:
     Type: AWS::IAM::Role
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -69,8 +72,9 @@ Resources:
 
   LogGroup:
     Type: AWS::Logs::LogGroup
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       LogGroupName: !Sub "/aws/lambda/${ProjectName}-agenda-parser"
       RetentionInDays: 14
@@ -82,6 +86,9 @@ Resources:
   # the internet without a NAT gateway or a VPC endpoint.
   Function:
     Type: AWS::Lambda::Function
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       FunctionName: !Sub "${ProjectName}-agenda-parser"
       Description: Pasted text -> structured agenda (suggestion only, never writes)
@@ -103,6 +110,9 @@ Resources:
 
   FunctionUrl:
     Type: AWS::Lambda::Url
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TargetFunctionArn: !Ref Function
       AuthType: NONE
@@ -114,6 +124,9 @@ Resources:
 
   FunctionUrlPermission:
     Type: AWS::Lambda::Permission
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       FunctionName: !Ref Function
       Action: lambda:InvokeFunctionUrl
@@ -122,6 +135,9 @@ Resources:
 
   FunctionUrlInvokePermission:
     Type: AWS::Lambda::Permission
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       FunctionName: !Ref Function
       Action: lambda:InvokeFunction
@@ -131,6 +147,9 @@ Resources:
   # The cheapest insurance in the course: an email at 80% and 100% of $5.
   Budget:
     Type: AWS::Budgets::Budget
+    # Lab 7: deleting the stack leaves the resource for Terraform to import.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Condition: HasBudget
     Properties:
       Budget:
@@ -159,6 +178,11 @@ Resources:
               Address: !Ref BudgetEmail
 
 Outputs:
+  # An output change makes CloudFormation update the stack, so the Retain
+  # policies above are recorded before the stack is deleted (Lab 7, Step 3a).
+  HandedOverTo:
+    Value: terraform
+
   ParserUrl:
     Description: POST {text, today, tz} here.
     Value: !GetAtt FunctionUrl.FunctionUrl

@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image infra-init infra-plan infra-outputs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -98,8 +98,24 @@ llm-hello: ai-image ## One question to the model on Bedrock: prints the answer, 
 parse: ai-image ## Parse text from this laptop: make parse TEXT="Mon 10:00, pricing sync..."
 	$(AI_RUN) parse "$(TEXT)"
 
-deploy-ai: ## Build + push the parser image, deploy infra/ai.yml, write PARSER_URL to .env
+deploy-ai: ## Ship new parser code: build + push the image, update the function (infra is Terraform's)
 	./scripts/deploy-ai.sh
 
 logs-ai: ## Show the parser's log lines (model, tokens, latency, cost) from the last day
 	aws logs tail /aws/lambda/$${PROJECT_NAME:-spry}-agenda-parser --since 1d --format short
+
+# --- Lab 7: infrastructure as code (infra/, HCP Terraform workspace spry-dev) -------
+# There is deliberately no apply here. Infrastructure changes reach AWS one way:
+# a commit to main, planned and applied by HCP Terraform.
+TF = terraform -chdir=infra
+
+infra-init: ## Connect infra/ to the HCP Terraform workspace (after `terraform login`)
+	$(TF) init
+
+infra-plan: ## Speculative plan in HCP Terraform against your local files; changes nothing
+	$(TF) plan
+
+infra-outputs: ## Write the parser URL from the Terraform state into .env (for make deploy-frontend)
+	@url=$$($(TF) output -raw parser_url) && \
+	  python3 -c 'import re,sys; p=".env"; k,v="PARSER_URL",sys.argv[1]; ls=open(p).read().splitlines(); i=next((n for n,l in enumerate(ls) if l.startswith(k+"=")),None); (ls.__setitem__(i,k+"="+v) if i is not None else ls.append(k+"="+v)); open(p,"w").write("\n".join(ls)+"\n")' "$$url" && \
+	  echo "PARSER_URL=$$url"

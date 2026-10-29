@@ -1,0 +1,15 @@
+# What `terraform plan` uploads to HCP Terraform. The workspace's working
+# directory is infra/, so the CLI uploads the repository root: keep it small.
+.git/
+.github/
+backend/
+frontend/
+docs/
+scripts/
+infra-bootstrap/
+**/node_modules/
+**/.venv/
+**/.terraform/
+*.mov
+*.m4v
+.env
