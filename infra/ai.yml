@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Spry agenda parser (Lab 6): a Lambda function outside the VPC that turns
+  pasted text into a structured agenda with an LLM on Amazon Bedrock, behind
+  its own HTTPS function URL. It never writes data - saving goes through the
+  main API. Plus an AWS Budgets alarm, because every parse costs money.
+  Deployed by scripts/deploy-ai.sh.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: spry
+
+  ImageUri:
+    Type: String
+    Description: The Dockerfile's `ai` stage, pushed to ECR by the deploy script.
+
+  ParserModel:
+    Type: String
+    Default: anthropic.claude-opus-5-5
+    Description: >-
+      Bedrock model id. anthropic.* goes through the Anthropic Messages API on
+      Bedrock (bedrock-mantle); anything else through the Converse API.
+
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "http://localhost:3000"
+    Description: Browser origins allowed to call the parser (CORS on the function URL).
+
+  BudgetEmail:
+    Type: String
+    Default: ""
+    Description: Where the monthly budget alarm goes. Empty skips the budget.
+
+  BudgetUsd:
+    Type: Number
+    Default: 5
+
+Conditions:
+  HasBudget: !Not [!Equals [!Ref BudgetEmail, ""]]
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: invoke-bedrock
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # "*" for now - narrowing it is one of the lab's questions.
+              - Effect: Allow
+                Action:
+                  - bedrock-mantle:CreateInference
+                  - bedrock:InvokeModel
+                Resource: "*"
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-agenda-parser"
+      RetentionInDays: 14
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  # No VpcConfig: the parser needs no database, so it reaches Bedrock over
+  # the internet without a NAT gateway or a VPC endpoint.
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-agenda-parser"
+      Description: Pasted text -> structured agenda (suggestion only, never writes)
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      Role: !GetAtt Role.Arn
+      LoggingConfig:
+        LogGroup: !Ref LogGroup
+      Environment:
+        Variables:
+          PARSER_MODEL: !Ref ParserModel
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref Function
+      AuthType: NONE
+      Cors:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [POST]
+        AllowHeaders: [content-type, authorization]
+        MaxAge: 300
+
+  FunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  FunctionUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  # The cheapest insurance in the course: an email at 80% and 100% of $5.
+  Budget:
+    Type: AWS::Budgets::Budget
+    Condition: HasBudget
+    Properties:
+      Budget:
+        BudgetName: !Sub "${ProjectName}-monthly"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref BudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+
+Outputs:
+  ParserUrl:
+    Description: POST {text, today, tz} here.
+    Value: !GetAtt FunctionUrl.FunctionUrl
+
+  FunctionName:
+    Value: !Ref Function
+
+  LogGroupName:
+    Value: !Ref LogGroup

@@ -67,6 +67,23 @@ async function request<T>(
 
 /* --- schemas mirroring the API contract in PROJECT.md --- */
 
+export const agendaItemSchema = z.object({
+  topic: z.string(),
+  owner: z.string().nullable(),
+  minutes: z.number().int().nullable(),
+});
+
+export const actionItemSchema = z.object({
+  task: z.string(),
+  owner: z.string().nullable(),
+  due: z.string().nullable(),
+});
+
+export const agendaSchema = z.object({
+  items: z.array(agendaItemSchema),
+  action_items: z.array(actionItemSchema),
+});
+
 export const meetingSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -74,6 +91,7 @@ export const meetingSchema = z.object({
   ends_at: z.string(),
   attendee_count: z.number().int(),
   created_at: z.string(),
+  agenda: agendaSchema.nullable().optional(),
 });
 
 export const meetingListSchema = z.object({
@@ -87,6 +105,16 @@ export const healthSchema = z.object({
 });
 
 export type Meeting = z.infer<typeof meetingSchema>;
+export type Agenda = z.infer<typeof agendaSchema>;
+
+/** What PUT /api/v1/meetings/{id}/agenda accepts. */
+export type AgendaSave = Agenda & {
+  ai_suggestion?: {
+    agenda: unknown;
+    model: string;
+    prompt_version: string;
+  } | null;
+};
 export type MeetingList = z.infer<typeof meetingListSchema>;
 
 /** What POST /api/v1/meetings accepts. Times are ISO 8601 with an offset. */
@@ -113,6 +141,12 @@ export const api = {
   createMeeting: (payload: MeetingCreate) =>
     request("/api/v1/meetings", meetingSchema, {
       method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  saveAgenda: (meetingId: string, payload: AgendaSave) =>
+    request(`/api/v1/meetings/${meetingId}/agenda`, meetingSchema, {
+      method: "PUT",
       body: JSON.stringify(payload),
     }),
 };

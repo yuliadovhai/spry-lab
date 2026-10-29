@@ -1,0 +1,20 @@
+flowchart LR
+  user([Member<br/>browser])
+
+  subgraph aws[AWS us-east-1]
+    cf[CloudFront + S3<br/>app.yulia-spry.xyz<br/>Next.js static site]
+    apicf[CloudFront<br/>api.yulia-spry.xyz]
+    api[API Lambda<br/>FastAPI · in VPC]
+    db[(RDS PostgreSQL<br/>meetings, agenda,<br/>ai_suggestion)]
+    parser[Agenda parser Lambda<br/>outside VPC<br/>function URL]
+    bedrock[[Amazon Bedrock<br/>Claude Opus 5.5]]
+    logs[(CloudWatch Logs<br/>tokens · latency · cost)]
+  end
+
+  user -->|HTTPS| cf
+  user -->|"parse: POST text"| parser
+  parser -->|Messages API| bedrock
+  parser -.-> logs
+  user -->|"save: PUT agenda + ai_suggestion"| apicf
+  apicf --> api
+  api -->|SQL| db

@@ -46,12 +46,14 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_PARSER_URL: ${PARSER_URL:-}
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_PARSER_URL: ${PARSER_URL:-}
       INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:8000}
       NODE_ENV: production
     ports:

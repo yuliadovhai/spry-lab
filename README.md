@@ -244,3 +244,18 @@ than loading it into the local daemon. Switching the job to a `ubuntu-24.04-arm`
 build native and those two steps unnecessary.
 
 The frontend is not wired to CI — `make deploy-frontend` stays a local command for now.
+
+## Lab 6: Paste an agenda
+
+```bash
+make llm-hello                      # one question to the model, from this laptop (Docker)
+make parse TEXT="Пн 10:00, синк..." # the parser on a piece of text, from this laptop
+BUDGET_EMAIL=you@example.com make deploy-ai   # parser Lambda + function URL + $5 budget
+make deploy-backend                 # migration 0002: agenda + ai_suggestion
+make deploy-frontend                # compiles PARSER_URL into the site
+make logs-ai                        # model, prompt version, tokens, latency, cost per parse
+```
+
+`PARSER_MODEL=anthropic.claude-haiku-5-5 make deploy-ai` switches the model; any non-Anthropic id
+(e.g. `us.amazon.nova-micro-v1:0`) goes through the Converse API. Design and trade-offs:
+[ADR 0006](docs/adr/0006-llm-agenda-parsing.md); report template: [docs/lab6-report.md](docs/lab6-report.md).

@@ -77,3 +77,18 @@ COPY migrations ${LAMBDA_TASK_ROOT}/migrations
 COPY alembic.ini ${LAMBDA_TASK_ROOT}/
 
 CMD ["app.lambda_handler.handler"]
+
+
+# --- ai: the agenda parser Lambda (Lab 6), outside the VPC ---
+# Its own small image: the parser needs the Anthropic SDK and pydantic, not
+# FastAPI or the database driver, and app/ai imports nothing else from app/.
+FROM public.ecr.aws/lambda/python:3.14 AS ai
+
+COPY requirements-ai.txt /tmp/requirements-ai.txt
+RUN pip install --no-cache-dir --target "${LAMBDA_TASK_ROOT}" -r /tmp/requirements-ai.txt \
+    && rm /tmp/requirements-ai.txt
+
+COPY app/__init__.py ${LAMBDA_TASK_ROOT}/app/__init__.py
+COPY app/ai ${LAMBDA_TASK_ROOT}/app/ai
+
+CMD ["app.ai.agenda_lambda.handler"]

@@ -91,3 +91,51 @@ async def test_pagination(client: AsyncClient) -> None:
 async def test_pagination_rejects_bad_limit(client: AsyncClient) -> None:
     assert (await client.get("/api/v1/meetings", params={"limit": 0})).status_code == 422
     assert (await client.get("/api/v1/meetings", params={"limit": 101})).status_code == 422
+
+
+AGENDA = {
+    "items": [
+        {"topic": "New Pro pricing", "owner": "Олена", "minutes": 15},
+        {"topic": "Customer feedback", "owner": "Taras", "minutes": None},
+    ],
+    "action_items": [{"task": "Competitor comparison", "owner": "Taras", "due": "2026-11-06"}],
+}
+
+
+async def test_new_meeting_has_no_agenda(client: AsyncClient) -> None:
+    body = (await client.post("/api/v1/meetings", json=MEETING)).json()
+    assert body["agenda"] is None
+
+
+async def test_save_agenda_with_ai_suggestion(client: AsyncClient) -> None:
+    meeting = (await client.post("/api/v1/meetings", json=MEETING)).json()
+    payload = {
+        **AGENDA,
+        "ai_suggestion": {
+            "agenda": {"items": [{"topic": "New Pro tariffs"}]},
+            "model": "anthropic.claude-opus-5-5",
+            "prompt_version": "agenda-v1",
+        },
+    }
+    response = await client.put(f"/api/v1/meetings/{meeting['id']}/agenda", json=payload)
+    assert response.status_code == 200
+    assert response.json()["agenda"]["items"][0]["owner"] == "Олена"
+    listed = (await client.get("/api/v1/meetings")).json()["meetings"][0]
+    assert listed["agenda"]["action_items"][0]["due"] == "2026-11-06"
+
+
+async def test_save_agenda_by_hand(client: AsyncClient) -> None:
+    meeting = (await client.post("/api/v1/meetings", json=MEETING)).json()
+    response = await client.put(f"/api/v1/meetings/{meeting['id']}/agenda", json=AGENDA)
+    assert response.status_code == 200
+
+
+async def test_agenda_needs_at_least_one_item(client: AsyncClient) -> None:
+    meeting = (await client.post("/api/v1/meetings", json=MEETING)).json()
+    url = f"/api/v1/meetings/{meeting['id']}/agenda"
+    assert (await client.put(url, json={"items": []})).status_code == 422
+
+
+async def test_agenda_for_missing_meeting_is_404(client: AsyncClient) -> None:
+    url = f"/api/v1/meetings/{uuid.uuid4()}/agenda"
+    assert (await client.put(url, json=AGENDA)).status_code == 404

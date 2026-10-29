@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock, Plus, Users } from "lucide-react";
+import { CalendarDays, Clock, ListChecks, Plus, Users } from "lucide-react";
 import { useState } from "react";
 
+import { AgendaDialog } from "@/components/agenda-dialog";
 import { MeetingFormDialog } from "@/components/meeting-form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
 
 export function MeetingsView() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [agendaFor, setAgendaFor] = useState<Meeting | null>(null);
   const query = useQuery({
     queryKey: ["meetings"],
     queryFn: () => api.listMeetings({ limit: 100 }),
@@ -72,11 +74,19 @@ export function MeetingsView() {
           <MeetingList
             meetings={query.data.meetings}
             onAdd={() => setDialogOpen(true)}
+            onAgenda={setAgendaFor}
           />
         </>
       )}
 
       <MeetingFormDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <AgendaDialog
+        key={agendaFor?.id ?? "closed"}
+        meeting={agendaFor}
+        onOpenChange={(open) => {
+          if (!open) setAgendaFor(null);
+        }}
+      />
     </main>
   );
 }
@@ -157,9 +167,11 @@ function InsightCard({
 function MeetingList({
   meetings,
   onAdd,
+  onAgenda,
 }: {
   meetings: Meeting[];
   onAdd: () => void;
+  onAgenda: (meeting: Meeting) => void;
 }) {
   if (meetings.length === 0) {
     return (
@@ -207,6 +219,16 @@ function MeetingList({
                 <Users aria-hidden className="size-3.5" />
                 {meeting.attendee_count}
               </div>
+              <Button
+                size="sm"
+                variant={meeting.agenda ? "ghost" : "outline"}
+                onClick={() => onAgenda(meeting)}
+              >
+                <ListChecks data-icon="inline-start" className="size-3.5" />
+                {meeting.agenda
+                  ? `Agenda · ${meeting.agenda.items.length}`
+                  : "Add agenda"}
+              </Button>
             </li>
           );
         })}

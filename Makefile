@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -81,3 +81,25 @@ destroy-frontend: ## Delete the frontend stack (bucket + distribution)
 
 github-role: ## Create the IAM role GitHub Actions assumes to deploy (OIDC, no keys)
 	./scripts/github-role.sh
+
+# --- Lab 6: the agenda parser ------------------------------------------------
+# llm-hello / parse run the parser image on this laptop with your AWS
+# credentials, so nothing needs installing beyond Docker.
+AI_RUN = docker run --rm -v $$HOME/.aws:/root/.aws:ro -e AWS_REGION=$${AWS_REGION:-us-east-1} \
+	-e AWS_PROFILE -e PARSER_MODEL=$${PARSER_MODEL:-anthropic.claude-opus-5-5} \
+	--entrypoint python3 spry-ai -m app.ai.cli
+
+ai-image: ## Build the parser image locally
+	docker build --target ai -t spry-ai backend
+
+llm-hello: ai-image ## One question to the model on Bedrock: prints the answer, stop_reason, usage
+	$(AI_RUN) hello
+
+parse: ai-image ## Parse text from this laptop: make parse TEXT="Mon 10:00, pricing sync..."
+	$(AI_RUN) parse "$(TEXT)"
+
+deploy-ai: ## Build + push the parser image, deploy infra/ai.yml, write PARSER_URL to .env
+	./scripts/deploy-ai.sh
+
+logs-ai: ## Show the parser's log lines (model, tokens, latency, cost) from the last day
+	aws logs tail /aws/lambda/$${PROJECT_NAME:-spry}-agenda-parser --since 1d --format short

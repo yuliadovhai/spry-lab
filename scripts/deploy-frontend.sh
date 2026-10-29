@@ -108,6 +108,7 @@ log "building the static export"
 rm -rf "${APP}/out"
 (cd "${APP}" && NEXT_OUTPUT=export \
   NEXT_PUBLIC_API_URL="${API_URL}" \
+  NEXT_PUBLIC_PARSER_URL="${PARSER_URL:-}" \
   "${PM[@]}" build)
 [[ -f "${APP}/out/index.html" ]] || die "the export produced no out/index.html"
 
