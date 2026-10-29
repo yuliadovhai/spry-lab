@@ -32,10 +32,14 @@ Constraints:
    browser shows a pre-filled form; every model-filled field carries a
    *suggested* badge until the person edits it. Saving goes through the normal
    API (`PUT /api/v1/meetings/{id}/agenda`) with its usual validation.
-3. **Model:** `anthropic.claude-opus-5-5` through the Anthropic Messages API on
-   Bedrock, `effort: low`. The model id is configuration (`PARSER_MODEL`); any
-   non-Anthropic id (e.g. `us.amazon.nova-micro-v1:0`) goes through the Converse
-   API instead, so a cheaper model can be measured on the same inputs.
+3. **Model:** `us.amazon.nova-micro-v1:0` through the Converse API. The design
+   target was `anthropic.claude-opus-5-5` through the Anthropic Messages API on
+   Bedrock, but on the AWS Free account plan Bedrock answers **403
+   `permission_error` ("not available for this account")** for Anthropic models.
+   The model id is configuration (`PARSER_MODEL`): `anthropic.*` ids use the
+   Messages API, anything else the Converse API. Switching back to Claude after
+   upgrading the account is one deploy, no code change. This is the
+   provider-neutral vs provider-specific trade-off from Part 1, met in practice.
 4. **A schema, not free text.** The model must answer through one tool,
    `record_agenda`, whose input schema is the Pydantic `ParsedAgenda`. The
    answer is validated; on failure the model sees the validation error once,
@@ -78,9 +82,13 @@ Constraints:
 
 ## Consequences
 
-- **Cost per parse** is logged on every call (`make logs-ai`). A one-paragraph
-  agenda is about 1,500 tokens in and 300–500 out: ~$0.01–0.02 with Opus 5.5,
-  ~$0.0004 with Haiku 5.5.
+- **Cost per parse** is logged on every call (`make logs-ai`). Measured with
+  Nova Micro: ~1,100 tokens in, ~250 out, **$0.00006–0.00014 per parse**, 1–2.4 s.
+  2,600 parses a month ≈ $0.21, against $7.30 a month for one idle VPC endpoint.
+- **Quality, measured on five inputs** (`docs/lab6-report.md`): Nova Micro gets
+  topics and explicit owners right, but invents owners and minutes, resolves
+  relative dates wrongly, and obeyed a prompt injection. The *suggested* badges
+  and the human Save step are therefore load-bearing, not decoration.
 - **Logged per parse:** user (anonymous until sign-in), model, prompt version,
   input and output tokens, characters, latency, cost in USD. Not logged: the
   text itself (it may contain personal data).
