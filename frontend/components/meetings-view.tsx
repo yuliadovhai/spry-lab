@@ -41,14 +41,17 @@ export function MeetingsView() {
     <main className="mx-auto grid w-full max-w-5xl gap-8 px-6 py-10 sm:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid gap-1">
-          <h1 className="font-heading text-3xl font-bold tracking-tight">
+          <h1 className="font-heading text-4xl font-semibold">
             Insights this week
           </h1>
           <p className="text-sm text-muted-foreground">
             Where your week goes, compared with the last one.
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button
+          className="rounded-full px-5"
+          onClick={() => setDialogOpen(true)}
+        >
           <Plus data-icon="inline-start" className="size-4" />
           Add meeting
         </Button>
@@ -142,12 +145,14 @@ function InsightCard({
   const bad = higherIsBetter ? delta < 0 : delta > 0;
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-card p-5 shadow-notion-xs">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {icon}
+    <div className="grid gap-3 rounded-2xl border bg-card p-6 shadow-notion-sm">
+      <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
+        <span className="grid size-8 place-items-center rounded-full bg-tint-peach text-tint-peach-foreground">
+          {icon}
+        </span>
         {label}
       </div>
-      <div className="text-3xl font-semibold tracking-tight">{value}</div>
+      <div className="font-heading text-4xl font-semibold">{value}</div>
       <div
         className={cn(
           "text-xs font-medium",
@@ -175,7 +180,7 @@ function MeetingList({
 }) {
   if (meetings.length === 0) {
     return (
-      <div className="grid place-items-center gap-3 rounded-xl border border-dashed p-12 text-center">
+      <div className="grid place-items-center gap-3 rounded-2xl border-2 border-dashed bg-card/60 p-12 text-center">
         <p className="font-medium">No meetings yet</p>
         <p className="text-sm text-muted-foreground">
           Add the first one to see your week take shape.
@@ -190,10 +195,10 @@ function MeetingList({
 
   return (
     <section aria-labelledby="meetings-heading" className="grid gap-3">
-      <h2 id="meetings-heading" className="text-lg font-semibold">
+      <h2 id="meetings-heading" className="font-heading text-2xl font-semibold">
         Meetings
       </h2>
-      <ul className="divide-y rounded-xl border bg-card">
+      <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-notion-xs">
         {meetings.map((meeting) => {
           const start = new Date(meeting.starts_at);
           const startTime = timeFormat.format(start);
@@ -201,7 +206,7 @@ function MeetingList({
           return (
             <li
               key={meeting.id}
-              className="flex flex-wrap items-center gap-x-6 gap-y-1 px-5 py-3"
+              className="flex flex-wrap items-center gap-x-6 gap-y-1 px-6 py-4 transition-colors hover:bg-muted/60"
             >
               <div className="w-28 text-sm text-muted-foreground">
                 {dayFormat.format(start)}
@@ -212,7 +217,7 @@ function MeetingList({
               <div className="min-w-0 flex-1 truncate font-medium">
                 {meeting.title}
               </div>
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="rounded-full">
                 {formatMinutes(durationMinutes(meeting))}
               </Badge>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -241,11 +246,11 @@ function LoadingState() {
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-3">
-        <Skeleton className="h-28 rounded-xl" />
-        <Skeleton className="h-28 rounded-xl" />
-        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
       </div>
-      <Skeleton className="h-48 rounded-xl" />
+      <Skeleton className="h-48 rounded-2xl" />
     </div>
   );
 }

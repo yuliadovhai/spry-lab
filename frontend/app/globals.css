@@ -13,8 +13,7 @@
   --font-mono:
     var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-heading:
-    var(--font-notion-sans), ui-sans-serif, -apple-system, "Segoe UI",
-    Helvetica, Arial, sans-serif;
+    var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -81,111 +80,111 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #191918;
-  --card: #ffffff;
-  --card-foreground: #191918;
-  --popover: #ffffff;
-  --popover-foreground: #191918;
-  /* Notion's action blue. */
-  --primary: #0075de;
+  --background: #fbf6f0;
+  --foreground: #2e2420;
+  --card: #fffcf8;
+  --card-foreground: #2e2420;
+  --popover: #fffcf8;
+  --popover-foreground: #2e2420;
+  /* Warm terracotta: deep enough for white text (4.5:1). */
+  --primary: #c4553d;
   --primary-foreground: #ffffff;
-  --secondary: #f6f5f4;
-  --secondary-foreground: #37352f;
-  --muted: #f9f9f8;
-  --muted-foreground: #73726e;
-  --accent: #f1f1ef;
-  --accent-foreground: #191918;
-  --destructive: #d44c47;
-  --border: #e9e9e7;
-  --input: #dfdfdc;
-  --ring: #0075de;
-  --chart-1: #0075de;
-  --chart-2: #d9730d;
-  --chart-3: #0f7b6c;
-  --chart-4: #6940a5;
-  --chart-5: #ad1a72;
-  --radius: 0.5rem;
-  --sidebar: #f9f9f8;
-  --sidebar-foreground: #191918;
-  --sidebar-primary: #0075de;
+  --secondary: #f4e9df;
+  --secondary-foreground: #4a3a32;
+  --muted: #f6eee6;
+  --muted-foreground: #85756b;
+  --accent: #f6e4d8;
+  --accent-foreground: #2e2420;
+  --destructive: #c23b3b;
+  --border: #ecdfd3;
+  --input: #e4d4c6;
+  --ring: #e08a6f;
+  --chart-1: #c4553d;
+  --chart-2: #e3a14a;
+  --chart-3: #6f9a74;
+  --chart-4: #9a6fa8;
+  --chart-5: #d4789a;
+  --radius: 0.9rem;
+  --sidebar: #f6eee6;
+  --sidebar-foreground: #2e2420;
+  --sidebar-primary: #c4553d;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f1ef;
-  --sidebar-accent-foreground: #191918;
-  --sidebar-border: #e9e9e7;
-  --sidebar-ring: #0075de;
+  --sidebar-accent: #f6e4d8;
+  --sidebar-accent-foreground: #2e2420;
+  --sidebar-border: #ecdfd3;
+  --sidebar-ring: #e08a6f;
 
-  --tint-blue: #f2f9ff;
-  --tint-blue-foreground: #005bab;
-  --tint-peach: #fef3f1;
-  --tint-peach-foreground: #b3402f;
-  --tint-yellow: #fff5e0;
+  --tint-blue: #eef3f6;
+  --tint-blue-foreground: #3f6478;
+  --tint-peach: #fbe7dd;
+  --tint-peach-foreground: #a8452f;
+  --tint-yellow: #fbf0d9;
   --tint-yellow-foreground: #8a6215;
-  --tint-green: #edf3ec;
-  --tint-green-foreground: #3f7d5c;
-  --tint-gray: #f9f9f8;
+  --tint-green: #e9f1e6;
+  --tint-green-foreground: #3f7348;
+  --tint-gray: #f6eee6;
 
-  --status-todo: #a5a4a0;
-  --status-progress: #2383e2;
-  --status-done: #2e9d5f;
+  --status-todo: #b3a59a;
+  --status-progress: #e3a14a;
+  --status-done: #6f9a74;
 
-  --shadow-tint-weak: rgb(15 15 15 / 0.05);
-  --shadow-tint: rgb(15 15 15 / 0.1);
-  --shadow-tint-strong: rgb(15 15 15 / 0.2);
-  --selection: rgb(35 131 226 / 0.28);
+  --shadow-tint-weak: rgb(120 70 40 / 0.06);
+  --shadow-tint: rgb(120 70 40 / 0.1);
+  --shadow-tint-strong: rgb(120 70 40 / 0.16);
+  --selection: rgb(224 138 111 / 0.3);
 }
 
 .dark {
-  --background: #191919;
-  --foreground: #ededec;
-  --card: #202020;
-  --card-foreground: #ededec;
-  --popover: #252525;
-  --popover-foreground: #ededec;
-  --primary: #2383e2;
-  --primary-foreground: #ffffff;
-  --secondary: #2a2a2a;
-  --secondary-foreground: #ededec;
-  --muted: #232323;
-  --muted-foreground: #9b9a97;
-  --accent: #2f2f2f;
-  --accent-foreground: #ededec;
-  --destructive: #ff7369;
-  --border: #2f2f2f;
-  --input: #373737;
-  --ring: #2383e2;
-  --chart-1: #2383e2;
-  --chart-2: #ffa344;
-  --chart-3: #4dab9a;
-  --chart-4: #9a6dd7;
-  --chart-5: #e255a1;
-  --sidebar: #202020;
-  --sidebar-foreground: #ededec;
-  --sidebar-primary: #2383e2;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2f2f2f;
-  --sidebar-accent-foreground: #ededec;
-  --sidebar-border: #2f2f2f;
-  --sidebar-ring: #2383e2;
+  --background: #1f1916;
+  --foreground: #f3e9e1;
+  --card: #29211d;
+  --card-foreground: #f3e9e1;
+  --popover: #2e2521;
+  --popover-foreground: #f3e9e1;
+  --primary: #e8826a;
+  --primary-foreground: #1f1916;
+  --secondary: #332a25;
+  --secondary-foreground: #f3e9e1;
+  --muted: #2b231f;
+  --muted-foreground: #b0a096;
+  --accent: #3a2d27;
+  --accent-foreground: #f3e9e1;
+  --destructive: #ff7d6e;
+  --border: #3a2f29;
+  --input: #443730;
+  --ring: #e8826a;
+  --chart-1: #e8826a;
+  --chart-2: #f0b45e;
+  --chart-3: #8fbf94;
+  --chart-4: #c09ad0;
+  --chart-5: #e79ab5;
+  --sidebar: #29211d;
+  --sidebar-foreground: #f3e9e1;
+  --sidebar-primary: #e8826a;
+  --sidebar-primary-foreground: #1f1916;
+  --sidebar-accent: #3a2d27;
+  --sidebar-accent-foreground: #f3e9e1;
+  --sidebar-border: #3a2f29;
+  --sidebar-ring: #e8826a;
 
-  --tint-blue: #1c2b3d;
-  --tint-blue-foreground: #8bbdf0;
-  --tint-peach: #3a2622;
-  --tint-peach-foreground: #ff9c8a;
-  --tint-yellow: #372e20;
-  --tint-yellow-foreground: #ffdc7d;
-  --tint-green: #232e2b;
-  --tint-green-foreground: #85cfae;
-  --tint-gray: #202020;
+  --tint-blue: #23303a;
+  --tint-blue-foreground: #9cc2d8;
+  --tint-peach: #3d2823;
+  --tint-peach-foreground: #ffa48c;
+  --tint-yellow: #3a3020;
+  --tint-yellow-foreground: #ffd98a;
+  --tint-green: #25302a;
+  --tint-green-foreground: #9fd0a6;
+  --tint-gray: #29211d;
 
-  --status-todo: #6f6e6a;
-  --status-progress: #5b8def;
-  --status-done: #3fa35c;
+  --status-todo: #7d6f66;
+  --status-progress: #f0b45e;
+  --status-done: #8fbf94;
 
   --shadow-tint-weak: rgb(0 0 0 / 0.2);
   --shadow-tint: rgb(0 0 0 / 0.3);
   --shadow-tint-strong: rgb(0 0 0 / 0.4);
-  --selection: rgb(35 131 226 / 0.4);
+  --selection: rgb(232 130 106 / 0.35);
 }
 
 @layer base {
@@ -208,10 +207,10 @@
   }
   /* Notion sets headings tight and dense; the bigger the type, the tighter. */
   h1 {
-    letter-spacing: -0.035em;
+    letter-spacing: -0.02em;
   }
   h2 {
-    letter-spacing: -0.025em;
+    letter-spacing: -0.01em;
   }
   h3,
   h4 {
