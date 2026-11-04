@@ -132,6 +132,9 @@
   --shadow-tint: rgb(120 70 40 / 0.1);
   --shadow-tint-strong: rgb(120 70 40 / 0.16);
   --selection: rgb(224 138 111 / 0.3);
+  /* Two soft glows behind the page. */
+  --glow-1: #f9dccd;
+  --glow-2: #fbedcc;
 }
 
 .dark {
@@ -185,6 +188,8 @@
   --shadow-tint: rgb(0 0 0 / 0.3);
   --shadow-tint-strong: rgb(0 0 0 / 0.4);
   --selection: rgb(232 130 106 / 0.35);
+  --glow-1: rgb(232 130 106 / 0.12);
+  --glow-2: rgb(240 180 94 / 0.08);
 }
 
 @layer base {
@@ -193,6 +198,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(56rem 28rem at 0% -8%, var(--glow-1), transparent 65%),
+      radial-gradient(48rem 26rem at 100% 0%, var(--glow-2), transparent 60%);
+    background-attachment: fixed;
     font-feature-settings:
       "liga" 1,
       "calt" 1,

@@ -19,11 +19,8 @@ import {
 } from "@/lib/meetings";
 import { cn } from "@/lib/utils";
 
-const dayFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+const monthFormat = new Intl.DateTimeFormat(undefined, { month: "short" });
 const timeFormat = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
@@ -40,7 +37,10 @@ export function MeetingsView() {
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-8 px-6 py-10 sm:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="grid gap-1">
+        <div className="grid gap-2">
+          <span className="w-fit rounded-full bg-tint-peach px-3 py-1 text-xs font-semibold text-tint-peach-foreground">
+            Your week at a glance
+          </span>
           <h1 className="font-heading text-4xl font-semibold">
             Insights this week
           </h1>
@@ -49,7 +49,7 @@ export function MeetingsView() {
           </p>
         </div>
         <Button
-          className="rounded-full px-5"
+          className="rounded-full px-5 shadow-md shadow-primary/25"
           onClick={() => setDialogOpen(true)}
         >
           <Plus data-icon="inline-start" className="size-4" />
@@ -102,6 +102,7 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
     <section aria-label="This week" className="grid gap-4 sm:grid-cols-3">
       <InsightCard
         icon={<Clock className="size-4" />}
+        tone="peach"
         label="Time in meetings"
         value={formatMinutes(current.minutes)}
         change={percentChange(current.minutes, previous.minutes)}
@@ -109,6 +110,7 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
       />
       <InsightCard
         icon={<CalendarDays className="size-4" />}
+        tone="yellow"
         label="Meetings"
         value={String(current.meetings)}
         change={percentChange(current.meetings, previous.meetings)}
@@ -116,6 +118,7 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
       />
       <InsightCard
         icon={<Users className="size-4" />}
+        tone="green"
         label="Average attendees"
         value={current.avgAttendees.toFixed(1)}
         change={percentChange(current.avgAttendees, previous.avgAttendees)}
@@ -125,8 +128,15 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
   );
 }
 
+const toneClasses = {
+  peach: "bg-tint-peach text-tint-peach-foreground",
+  yellow: "bg-tint-yellow text-tint-yellow-foreground",
+  green: "bg-tint-green text-tint-green-foreground",
+} as const;
+
 type InsightCardProps = {
   icon: React.ReactNode;
+  tone: keyof typeof toneClasses;
   label: string;
   value: string;
   change: number | null;
@@ -135,6 +145,7 @@ type InsightCardProps = {
 
 function InsightCard({
   icon,
+  tone,
   label,
   value,
   change,
@@ -145,9 +156,14 @@ function InsightCard({
   const bad = higherIsBetter ? delta < 0 : delta > 0;
 
   return (
-    <div className="grid gap-3 rounded-2xl border bg-card p-6 shadow-notion-sm">
+    <div className="grid gap-3 rounded-3xl border bg-card/90 p-6 shadow-notion-sm transition-transform hover:-translate-y-0.5">
       <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
-        <span className="grid size-8 place-items-center rounded-full bg-tint-peach text-tint-peach-foreground">
+        <span
+          className={cn(
+            "grid size-9 place-items-center rounded-full",
+            toneClasses[tone],
+          )}
+        >
           {icon}
         </span>
         {label}
@@ -198,7 +214,7 @@ function MeetingList({
       <h2 id="meetings-heading" className="font-heading text-2xl font-semibold">
         Meetings
       </h2>
-      <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-notion-xs">
+      <ul className="divide-y overflow-hidden rounded-3xl border bg-card/90 shadow-notion-sm">
         {meetings.map((meeting) => {
           const start = new Date(meeting.starts_at);
           const startTime = timeFormat.format(start);
@@ -208,8 +224,16 @@ function MeetingList({
               key={meeting.id}
               className="flex flex-wrap items-center gap-x-6 gap-y-1 px-6 py-4 transition-colors hover:bg-muted/60"
             >
-              <div className="w-28 text-sm text-muted-foreground">
-                {dayFormat.format(start)}
+              <div className="grid w-12 place-items-center rounded-2xl bg-tint-peach py-1.5 text-tint-peach-foreground">
+                <span className="text-[10px] font-bold tracking-wide uppercase">
+                  {monthFormat.format(start)}
+                </span>
+                <span className="font-heading text-xl leading-none font-semibold">
+                  {start.getDate()}
+                </span>
+              </div>
+              <div className="w-12 text-sm text-muted-foreground">
+                {weekdayFormat.format(start)}
               </div>
               <div className="w-28 text-sm tabular-nums">
                 {startTime} – {endTime}
