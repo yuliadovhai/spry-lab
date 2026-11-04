@@ -80,105 +80,105 @@
 }
 
 :root {
-  --background: #fbf6f0;
+  --background: #fdf6f5;
   --foreground: #2e2420;
-  --card: #fffcf8;
+  --card: #fffcfb;
   --card-foreground: #2e2420;
-  --popover: #fffcf8;
+  --popover: #fffcfb;
   --popover-foreground: #2e2420;
-  /* Warm terracotta: deep enough for white text (4.5:1). */
-  --primary: #c4553d;
+  /* Warm rose: deep enough for white text (4.5:1). */
+  --primary: #c0466f;
   --primary-foreground: #ffffff;
-  --secondary: #f4e9df;
-  --secondary-foreground: #4a3a32;
-  --muted: #f6eee6;
-  --muted-foreground: #85756b;
-  --accent: #f6e4d8;
+  --secondary: #f7e8eb;
+  --secondary-foreground: #4a3238;
+  --muted: #f8eff0;
+  --muted-foreground: #87727a;
+  --accent: #f9e1e9;
   --accent-foreground: #2e2420;
   --destructive: #c23b3b;
-  --border: #ecdfd3;
-  --input: #e4d4c6;
-  --ring: #e08a6f;
-  --chart-1: #c4553d;
-  --chart-2: #e3a14a;
+  --border: #f0dfe3;
+  --input: #e9d3d9;
+  --ring: #e27c9c;
+  --chart-1: #c0466f;
+  --chart-2: #ec9a7c;
   --chart-3: #6f9a74;
   --chart-4: #9a6fa8;
   --chart-5: #d4789a;
   --radius: 0.9rem;
-  --sidebar: #f6eee6;
+  --sidebar: #f8eff0;
   --sidebar-foreground: #2e2420;
-  --sidebar-primary: #c4553d;
+  --sidebar-primary: #c0466f;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f6e4d8;
+  --sidebar-accent: #f9e1e9;
   --sidebar-accent-foreground: #2e2420;
-  --sidebar-border: #ecdfd3;
-  --sidebar-ring: #e08a6f;
+  --sidebar-border: #f0dfe3;
+  --sidebar-ring: #e27c9c;
 
   --tint-blue: #eef3f6;
   --tint-blue-foreground: #3f6478;
-  --tint-peach: #fbe7dd;
-  --tint-peach-foreground: #a8452f;
+  --tint-peach: #fce4ec;
+  --tint-peach-foreground: #a83a62;
   --tint-yellow: #fbf0d9;
   --tint-yellow-foreground: #8a6215;
   --tint-green: #e9f1e6;
   --tint-green-foreground: #3f7348;
-  --tint-gray: #f6eee6;
+  --tint-gray: #f8eff0;
 
-  --status-todo: #b3a59a;
+  --status-todo: #b7a3aa;
   --status-progress: #e3a14a;
   --status-done: #6f9a74;
 
-  --shadow-tint-weak: rgb(120 70 40 / 0.06);
-  --shadow-tint: rgb(120 70 40 / 0.1);
-  --shadow-tint-strong: rgb(120 70 40 / 0.16);
-  --selection: rgb(224 138 111 / 0.3);
+  --shadow-tint-weak: rgb(130 50 80 / 0.06);
+  --shadow-tint: rgb(130 50 80 / 0.1);
+  --shadow-tint-strong: rgb(130 50 80 / 0.16);
+  --selection: rgb(226 124 156 / 0.3);
   /* Two soft glows behind the page. */
-  --glow-1: #f9dccd;
-  --glow-2: #fbedcc;
+  --glow-1: #f9d3e1;
+  --glow-2: #fce6dc;
 }
 
 .dark {
-  --background: #1f1916;
+  --background: #1f1719;
   --foreground: #f3e9e1;
-  --card: #29211d;
+  --card: #2a2023;
   --card-foreground: #f3e9e1;
-  --popover: #2e2521;
+  --popover: #2f2427;
   --popover-foreground: #f3e9e1;
-  --primary: #e8826a;
-  --primary-foreground: #1f1916;
-  --secondary: #332a25;
+  --primary: #ee8fae;
+  --primary-foreground: #1f1719;
+  --secondary: #34282c;
   --secondary-foreground: #f3e9e1;
-  --muted: #2b231f;
+  --muted: #2c2124;
   --muted-foreground: #b0a096;
-  --accent: #3a2d27;
+  --accent: #3b2b31;
   --accent-foreground: #f3e9e1;
   --destructive: #ff7d6e;
-  --border: #3a2f29;
-  --input: #443730;
-  --ring: #e8826a;
-  --chart-1: #e8826a;
-  --chart-2: #f0b45e;
+  --border: #3b2d32;
+  --input: #46363c;
+  --ring: #ee8fae;
+  --chart-1: #ee8fae;
+  --chart-2: #f3ad8f;
   --chart-3: #8fbf94;
   --chart-4: #c09ad0;
   --chart-5: #e79ab5;
-  --sidebar: #29211d;
+  --sidebar: #2a2023;
   --sidebar-foreground: #f3e9e1;
-  --sidebar-primary: #e8826a;
-  --sidebar-primary-foreground: #1f1916;
-  --sidebar-accent: #3a2d27;
+  --sidebar-primary: #ee8fae;
+  --sidebar-primary-foreground: #1f1719;
+  --sidebar-accent: #3b2b31;
   --sidebar-accent-foreground: #f3e9e1;
-  --sidebar-border: #3a2f29;
-  --sidebar-ring: #e8826a;
+  --sidebar-border: #3b2d32;
+  --sidebar-ring: #ee8fae;
 
   --tint-blue: #23303a;
   --tint-blue-foreground: #9cc2d8;
-  --tint-peach: #3d2823;
-  --tint-peach-foreground: #ffa48c;
+  --tint-peach: #3d2530;
+  --tint-peach-foreground: #ffa3c2;
   --tint-yellow: #3a3020;
   --tint-yellow-foreground: #ffd98a;
   --tint-green: #25302a;
   --tint-green-foreground: #9fd0a6;
-  --tint-gray: #29211d;
+  --tint-gray: #2a2023;
 
   --status-todo: #7d6f66;
   --status-progress: #f0b45e;
@@ -187,9 +187,9 @@
   --shadow-tint-weak: rgb(0 0 0 / 0.2);
   --shadow-tint: rgb(0 0 0 / 0.3);
   --shadow-tint-strong: rgb(0 0 0 / 0.4);
-  --selection: rgb(232 130 106 / 0.35);
-  --glow-1: rgb(232 130 106 / 0.12);
-  --glow-2: rgb(240 180 94 / 0.08);
+  --selection: rgb(238 143 174 / 0.35);
+  --glow-1: rgb(238 143 174 / 0.12);
+  --glow-2: rgb(243 173 143 / 0.07);
 }
 
 @layer base {
