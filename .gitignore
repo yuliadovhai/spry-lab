@@ -37,3 +37,10 @@ pgdata/
 tfplan
 crash.log
 generated.tf
+
+# --- lab 8 ---
+lab8/stream/data/
+lab8/cloud/.terraform/
+lab8/cloud/terraform.tfstate*
+lab8/cloud/build/
+lab8/.venv/

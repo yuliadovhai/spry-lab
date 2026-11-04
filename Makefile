@@ -1,9 +1,9 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image infra-init infra-plan infra-outputs
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image infra-init infra-plan infra-outputs lab8-bucket lab8-venv lab8-day lab8-stream-up lab8-stream-down
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 up: ## Start the whole stack (detached)
 	$(COMPOSE) up -d --build
@@ -119,3 +119,29 @@ infra-outputs: ## Write the parser URL from the Terraform state into .env (for m
 	@url=$$($(TF) output -raw parser_url) && \
 	  python3 -c 'import re,sys; p=".env"; k,v="PARSER_URL",sys.argv[1]; ls=open(p).read().splitlines(); i=next((n for n,l in enumerate(ls) if l.startswith(k+"=")),None); (ls.__setitem__(i,k+"="+v) if i is not None else ls.append(k+"="+v)); open(p,"w").write("\n".join(ls)+"\n")' "$$url" && \
 	  echo "PARSER_URL=$$url"
+
+# ---------------------------------------------------------------- Lab 8
+LAB8_BUCKET ?= spry-lab8-416670858269
+LAB8_DAY    ?= 2026-10-15
+
+lab8-bucket: ## Lab 8: create our bucket and copy the payments dataset into it (same region, free)
+	aws s3api head-bucket --bucket $(LAB8_BUCKET) 2>/dev/null || aws s3 mb s3://$(LAB8_BUCKET) --region us-east-1
+	aws s3 sync s3://ucu-ooad-lab8-payments/payments/ s3://$(LAB8_BUCKET)/payments/ --only-show-errors
+	aws s3 ls s3://$(LAB8_BUCKET)/payments/ --recursive --summarize | tail -2
+
+lab8-venv: ## Lab 8: python venv for the producers and the consumer
+	python3 -m venv lab8/.venv
+	lab8/.venv/bin/pip install -q -r lab8/stream/requirements.txt -r lab8/cloud/requirements.txt
+
+lab8-day: ## Lab 8: download one day of events for the producers: make lab8-day LAB8_DAY=2026-10-15
+	mkdir -p lab8/stream/data
+	aws s3 cp s3://$(LAB8_BUCKET)/payments/dt=$(LAB8_DAY)/events.jsonl lab8/stream/data/events.jsonl --only-show-errors
+	wc -l lab8/stream/data/events.jsonl
+
+lab8-stream-up: ## Lab 8: Redpanda + Console (localhost:8080) + topic payments with 3 partitions
+	docker compose -f lab8/stream/docker-compose.yml up -d --wait
+	docker compose -f lab8/stream/docker-compose.yml exec redpanda rpk topic create payments -p 3 || true
+	docker compose -f lab8/stream/docker-compose.yml exec redpanda rpk topic describe payments
+
+lab8-stream-down: ## Lab 8: stop Redpanda and delete its data
+	docker compose -f lab8/stream/docker-compose.yml down -v

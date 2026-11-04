@@ -1,0 +1,15 @@
+flowchart LR
+  P["Producer (Python, laptop)<br/>replays one day by receivedAt<br/>~20 payments/s, key = invoiceId"]
+  subgraph AWS["AWS us-east-1 (Terraform: lab8/cloud)"]
+    K["Kinesis Data Streams<br/>lab8-payments<br/>on-demand, 24 h retention"]
+    F["Data Firehose<br/>lab8-payments-to-s3<br/>60 s / 5 MB buffer"]
+    S3["S3 spry-lab8-…<br/>payments-stream/dt=YYYY-MM-DD/"]
+    G["Glue Crawler<br/>lab8-payments-stream"]
+    C["Glue Data Catalog<br/>lab8_stream.payments_stream"]
+    A["Athena<br/>SQL over the stream"]
+    L["Lambda lab8-failure-alert<br/>dedup + failure share per method<br/>batch ≤ 10 000 / 60 s"]
+    N["SNS lab8-failure-alerts<br/>e-mail"]
+  end
+  P -- PutRecords --> K
+  K --> F --> S3 --> G --> C --> A
+  K -- event source mapping --> L -- "failures > 10%" --> N
