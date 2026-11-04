@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock, ListChecks, Plus, Users } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { AgendaDialog } from "@/components/agenda-dialog";
@@ -101,7 +101,6 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
   return (
     <section aria-label="This week" className="grid gap-4 sm:grid-cols-3">
       <InsightCard
-        icon={<Clock className="size-4" />}
         tone="peach"
         label="Time in meetings"
         value={formatMinutes(current.minutes)}
@@ -109,7 +108,6 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
         higherIsBetter={false}
       />
       <InsightCard
-        icon={<CalendarDays className="size-4" />}
         tone="yellow"
         label="Meetings"
         value={String(current.meetings)}
@@ -117,7 +115,6 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
         higherIsBetter={false}
       />
       <InsightCard
-        icon={<Users className="size-4" />}
         tone="green"
         label="Average attendees"
         value={current.avgAttendees.toFixed(1)}
@@ -128,14 +125,14 @@ function InsightCards({ meetings }: { meetings: Meeting[] }) {
   );
 }
 
+/* A small coloured dot tells the cards apart without icons. */
 const toneClasses = {
-  peach: "bg-tint-peach text-tint-peach-foreground",
-  yellow: "bg-tint-yellow text-tint-yellow-foreground",
-  green: "bg-tint-green text-tint-green-foreground",
+  peach: "bg-primary",
+  yellow: "bg-chart-2",
+  green: "bg-chart-3",
 } as const;
 
 type InsightCardProps = {
-  icon: React.ReactNode;
   tone: keyof typeof toneClasses;
   label: string;
   value: string;
@@ -144,7 +141,6 @@ type InsightCardProps = {
 };
 
 function InsightCard({
-  icon,
   tone,
   label,
   value,
@@ -159,13 +155,9 @@ function InsightCard({
     <div className="grid gap-3 rounded-3xl border bg-card/90 p-6 shadow-notion-sm transition-transform hover:-translate-y-0.5">
       <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
         <span
-          className={cn(
-            "grid size-9 place-items-center rounded-full",
-            toneClasses[tone],
-          )}
-        >
-          {icon}
-        </span>
+          aria-hidden
+          className={cn("size-2.5 rounded-full", toneClasses[tone])}
+        />
         {label}
       </div>
       <div className="font-heading text-4xl font-semibold">{value}</div>
@@ -245,8 +237,8 @@ function MeetingList({
                 {formatMinutes(durationMinutes(meeting))}
               </Badge>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Users aria-hidden className="size-3.5" />
-                {meeting.attendee_count}
+                {meeting.attendee_count}{" "}
+                {meeting.attendee_count === 1 ? "person" : "people"}
               </div>
               <Button
                 size="sm"
