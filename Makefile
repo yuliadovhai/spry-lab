@@ -126,7 +126,7 @@ LAB8_DAY    ?= 2026-10-15
 
 lab8-bucket: ## Lab 8: create our bucket and copy the payments dataset into it (same region, free)
 	aws s3api head-bucket --bucket $(LAB8_BUCKET) 2>/dev/null || aws s3 mb s3://$(LAB8_BUCKET) --region us-east-1
-	aws s3 sync s3://ucu-ooad-lab8-payments/payments/ s3://$(LAB8_BUCKET)/payments/ --only-show-errors
+	aws s3 sync s3://ucu-ooad-lab8-payments/payments/ s3://$(LAB8_BUCKET)/payments/ --copy-props none --only-show-errors
 	aws s3 ls s3://$(LAB8_BUCKET)/payments/ --recursive --summarize | tail -2
 
 lab8-venv: ## Lab 8: python venv for the producers and the consumer
