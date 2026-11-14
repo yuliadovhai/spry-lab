@@ -69,6 +69,17 @@ tiers of Lambda (1 M requests, 400 000 GB-s) and Cloud Run (2 M requests, 180 00
 360 000 GiB-s). *Busy around the clock*: 10 requests/s all month (26.3 M requests),
 200 ms each, 512 MB. Frontend, registry, secrets and logs are $0 or cents on both sides.
 
+### Spry's core, nobody using it for a month (the reference table, for this project)
+
+| Piece | AWS (Spry as deployed) | Google Cloud (this lab, `gcp/`) |
+|---|---|---|
+| Frontend + CDN + HTTPS | CloudFront Free plan → $0 | Firebase Hosting free plan → $0 |
+| API | Lambda, idle → $0 | Cloud Run, scaled to zero → $0 |
+| Database compute | RDS `db.t4g.micro` running, $0.016/h → $11.68 | Cloud SQL `db-f1-micro` running, $0.0105/h → $7.67 |
+| Database storage | 20 GB gp2 at $0.115/GB → $2.30 | 10 GB SSD at $0.17/GB → $1.70 |
+| Registry, secrets, logs | ECR + 1 secret ($0.40) + logs ≈ $0.50 | within the free tier (0.5 GB registry, 6 secret versions) |
+| **Total** | **≈ $14.50 / month** | **≈ $9.40 / month, or ≈ $1.70 with the instance stopped** |
+
 ### Spry's core per profile
 
 | Profile | AWS: Lambda + RDS `db.t4g.micro` 24/7 + 20 GB gp2 | GCP: Cloud Run + Cloud SQL `db-f1-micro` 24/7 + 10 GB SSD | GCP: Cloud SQL stopped when unused | GCP: Firestore instead of SQL |
@@ -104,12 +115,24 @@ allocated** (instance-based billing): one forgotten setting turns $0 into ~$60/m
 
 Screenshots attached: BigQuery query, Looker Studio chart, OCR result.
 
-- **BigQuery** (sandbox, no card): query over a public dataset — bytes processed: _see screenshot_.
-- **Looker Studio**: a chart over that query's result.
-- **OCR**: Cloud Vision text detection (the "Try the API" demo on the Vision product page;
-  the API itself needs billing). Gemini in AI Studio reads the same image as a cross-check.
+- **BigQuery** (sandbox, no card), project `spry-yulia-2026`: top 10 US baby names since 2000
+  over `bigquery-public-data.usa_names.usa_1910_current` (Jacob 454 809, Michael 414 711,
+  Emma 407 365 …). **Bytes processed: 143.71 MB, billed 144 MB, 371 ms** — about 0.014 % of
+  the free 1 TiB a month. BigQuery read only the three columns the query uses.
+- **Looker Studio** (now "Data Studio" / Центр даних): "Open in → Data Studio" from the query
+  result, a column chart of `total` by `name` next to the table.
+- **OCR**: Cloud Vision text detection ("Try the API" demo) on a photo of my handwritten
+  statistics notes. It found the page → blocks → words and read most of it correctly
+  ("1) Statistical", "hypothesis testing", "assertion distribution of one"), but misread the
+  heading "Topic 11" as "Tople 11" and broke joined handwriting into fragments. The demo
+  accepts only JPEG/PNG — the iPhone HEIC photo had to be exported to JPEG first.
 
-**When is a specialised service like Document AI better than a general LLM?** When the job
+Not done, because they need billing: the Dataflow "Cloud Storage Text to BigQuery" template
+and the agenda prompt in Vertex AI Studio (the same prompt runs in Google AI Studio for free).
+
+**When is a specialised service like Document AI better than a general LLM?** The OCR demo shows
+both sides: Vision returned every word with its box and position (exactly what a form or
+receipt pipeline needs), but it does not understand that "Tople" must be "Topic". When the job
 is fixed and repeated at volume — the same invoice or form, thousands of pages: per-page
 price ($1.50 / 1 000 pages for OCR), bounding boxes and confidence scores, deterministic
 output, no prompt to drift. When it is not: free-form text that needs understanding — Lab 6's
@@ -129,6 +152,26 @@ crawler schedules, the Parquet copy and its prefix, Athena's result bucket, Fire
 Closest to this course: **Google Associate Cloud Engineer** (Parts 0–2 of this lab) and
 **Associate Data Practitioner** (Lab 8 + Part 4). The **OCI Multicloud Architect Associate**
 voucher is free through the Bridge program and is on the course Bonus list (+10 points).
+
+## For the class discussion
+
+- **Lock-in.** Moved without changes: the FastAPI code, the Docker image (`runtime` stage),
+  the Next.js export, the SQL schema and migrations. Changed: one line in `entrypoint.sh`
+  (`$PORT`) and the `DATABASE_URL` format. Rewritten: all the infrastructure code
+  (CloudFormation/aws → google provider) and IAM. So the lock-in is not in compute, it is in
+  the managed services around it — IAM, secrets, the CDN, and Bedrock — and it would be in
+  data if we had chosen Firestore.
+- **Multicloud.** Today's state (page on Google, API and data on AWS) works, but every page
+  load crosses clouds, AWS egress is billed per GB, and there are two consoles, two IAM
+  models and two bills. For Spry it is a migration state, not a goal; it makes sense only
+  for one service that is much better on the other cloud (BigQuery, a model).
+- **Scale to zero.** Giving up SQL for ~$9/month is worth it for a demo nobody uses or data
+  that is naturally documents; it is a bad trade when the data is relational, the queries are
+  ad hoc, or the team would spend more hours on the rewrite than it saves in a year.
+- **Choosing a cloud.** At this size the price difference is a few dollars; what decides is
+  what the team already knows, the credits and billing rules (this lab: a $30 prepayment
+  stopped the whole GCP side), and the services around the API — BigQuery on GCP, Bedrock's
+  model choice on AWS.
 
 ## Clean up
 

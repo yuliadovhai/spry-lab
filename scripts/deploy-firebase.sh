@@ -34,7 +34,7 @@ else
   CONFIG="firebase.json"
 fi
 
-if command -v pnpm >/dev/null 2>&1; then PM=(pnpm); else PM=(corepack pnpm); fi
+if command -v pnpm >/dev/null 2>&1; then PM=(pnpm); else PM=(npx --yes pnpm@10); fi
 
 log "building against ${API_URL:-the same origin (/api -> Cloud Run)}"
 (cd "${APP}" && "${PM[@]}" install --frozen-lockfile)
