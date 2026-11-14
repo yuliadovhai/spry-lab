@@ -23,7 +23,7 @@ const already = new Set(
   (existing.documents ?? []).map((d) => `${d.fields?.title?.stringValue}|${d.fields?.starts_at?.timestampValue}`),
 );
 
-const res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/v1/meetings?limit=200`);
+const res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/v1/meetings?limit=100`);
 if (!res.ok) {
   console.error(`API: ${res.status} ${await res.text()}`);
   process.exit(1);

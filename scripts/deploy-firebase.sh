@@ -67,4 +67,4 @@ log "deploying to Firebase Hosting (project ${PROJECT}, ${CONFIG})"
 
 echo
 echo "  site  https://${PROJECT}.web.app"
-[[ "${MODE}" == "aws" ]] && echo "  api   ${API_URL}  (add https://${PROJECT}.web.app to API_CORS_ORIGINS, then make deploy-backend)"
+if [[ "${MODE}" == "aws" ]]; then echo "  api   ${API_URL}  (add https://${PROJECT}.web.app to API_CORS_ORIGINS, then make deploy-backend)"; fi
