@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image infra-init infra-plan infra-outputs lab8-bucket lab8-venv lab8-day lab8-stream-up lab8-stream-down
+.PHONY: help up down build logs ps migrate revision test test-backend test-frontend lint fmt clean shell-backend shell-db deploy-backend destroy-backend logs-backend migrate-backend cert domain domain-api deploy-frontend destroy-frontend github-role deploy-ai logs-ai llm-hello parse ai-image infra-init infra-plan infra-outputs lab8-bucket lab8-venv lab8-day lab8-stream-up lab8-stream-down gcp-bootstrap gcp-init gcp-plan gcp-image deploy-firebase sql-stop sql-start
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -145,3 +145,31 @@ lab8-stream-up: ## Lab 8: Redpanda + Console (localhost:8080) + topic payments w
 
 lab8-stream-down: ## Lab 8: stop Redpanda and delete its data
 	docker compose -f lab8/stream/docker-compose.yml down -v
+
+# ---------------------------------------------------------------- Lab 9 (Google Cloud)
+GCP_PROJECT ?= spry-yulia-2026
+GCP_REGION  ?= us-central1
+GCP_REPO    := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/spry
+
+gcp-bootstrap: ## Lab 9: Workload Identity pool + terraform SA + spry-gcp workspace (once, with your gcloud sign-in)
+	terraform -chdir=gcp-bootstrap init
+	terraform -chdir=gcp-bootstrap apply -var project_id=$(GCP_PROJECT)
+
+gcp-init: ## Lab 9: connect gcp/ to the spry-gcp HCP workspace
+	terraform -chdir=gcp init
+
+gcp-plan: ## Lab 9: speculative plan for the GCP side; changes nothing
+	terraform -chdir=gcp plan
+
+gcp-image: ## Lab 9: build the backend runtime image (no Lambda layer) and push it to Artifact Registry
+	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
+	docker buildx build --platform linux/amd64 --target runtime -t $(GCP_REPO)/backend:latest --push backend
+
+deploy-firebase: ## Lab 9: build the static export and deploy it to Firebase Hosting
+	./scripts/deploy-firebase.sh
+
+sql-stop: ## Lab 9: stop the Cloud SQL instance (compute stops billing, storage does not)
+	gcloud sql instances patch spry-pg --activation-policy=NEVER --project $(GCP_PROJECT)
+
+sql-start: ## Lab 9: start the Cloud SQL instance again
+	gcloud sql instances patch spry-pg --activation-policy=ALWAYS --project $(GCP_PROJECT)

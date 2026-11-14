@@ -44,3 +44,11 @@ lab8/cloud/.terraform/
 lab8/cloud/terraform.tfstate*
 lab8/cloud/build/
 lab8/.venv/
+
+# --- lab 9 ---
+gcp-bootstrap/.terraform/
+gcp-bootstrap/terraform.tfstate*
+gcp-bootstrap/.terraform.lock.hcl
+gcp/.terraform/
+.firebase/
+firebase-debug.log

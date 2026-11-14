@@ -298,3 +298,35 @@ scripts/tf-cleanup-permissions.sh    # drop the old CloudFormation permission st
 make infra-plan                # No changes. Your infrastructure matches the configuration.
 # 4. Delete infra/imports.tf, connect the workspace to GitHub (Settings -> Version Control).
 ```
+
+## Google Cloud (Lab 9)
+
+Decisions: `docs/adr/0008-google-cloud.md`. Report and cost table: `docs/lab9-report.md`.
+
+**What runs where today.** Frontend: AWS (CloudFront) **and** Firebase Hosting
+(`https://spry-yulia-2026.web.app`). API, database, agenda parser: AWS. The GCP side of
+the API and database is described in `gcp/` but not applied — the GCP trial needs a
+$30 prepayment before Cloud Run / Cloud SQL can run.
+
+**Deploy the frontend to Firebase** (free plan, no billing):
+
+```bash
+npm install -g firebase-tools && firebase login
+make deploy-firebase                       # builds against BACKEND_URL (the AWS API)
+# then allow the new origin on the AWS API:
+#   API_CORS_ORIGINS=https://app.yulia-spry.xyz,https://spry-yulia-2026.web.app  in .env
+make deploy-backend
+```
+
+**The full GCP core** (once billing is on):
+
+```bash
+gcloud auth application-default login
+make gcp-bootstrap        # Workload Identity pool + terraform SA + HCP workspace spry-gcp (no keys)
+make gcp-image            # backend runtime image -> Artifact Registry
+make gcp-init && terraform -chdir=gcp apply
+GCP_API_MODE=cloudrun make deploy-firebase   # /api/** -> Cloud Run, one origin
+```
+
+**Stop the database** when nobody uses it (compute stops billing, the 10 GB SSD does not):
+`make sql-stop`, later `make sql-start`. Remove everything: `terraform -chdir=gcp destroy`.
