@@ -25,7 +25,7 @@ Hosting (Spark plan), BigQuery sandbox and Looker Studio need no billing account
 | Lambda + function URL, FastAPI | Cloud Run | **replace — in Terraform, not applied** | Same container runs locally and in the cloud; the `runtime` stage of `backend/Dockerfile` has no Lambda layer, `entrypoint.sh` now listens on `$PORT`. Min instances 0, max 2, request-based billing. Blocked by the prepayment. |
 | ECR | Artifact Registry | **replace — in Terraform** | Repository `spry`, cleanup policy keeps 3 images to stay inside 0.5 GB free. |
 | RDS PostgreSQL `db.t4g.micro` | Cloud SQL for PostgreSQL `db-f1-micro`, 10 GB SSD | **replace, stopped when unused — in Terraform** | See *The database* below. |
-| — (no DynamoDB) | Firestore | **rejected for now** | Would rewrite the data layer; see below. |
+| — (no DynamoDB) | Firestore | **deployed as the free path** | The only GCP database that needs no billing; see below. Target stays Cloud SQL. |
 | — (no Cognito yet) | Identity Platform | **later** | Nothing to move. When sign-in comes: Identity Platform (50 000 MAU free vs Cognito's 10 000); the API would verify the ID token, and only then should Cloud Run stop allowing unauthenticated calls. |
 | — (no EventBridge / SQS yet) | Cloud Scheduler, Pub/Sub or Cloud Tasks | **later** | The weekly report does not exist yet. Cloud Scheduler (3 jobs free) calling a Cloud Run endpoint is the plan; Cloud Tasks if it ever needs a work queue. |
 | — (no SES yet) | no Google service | **keep SES** | See *E-mail*. |
@@ -44,14 +44,20 @@ Hosting (Spark plan), BigQuery sandbox and Looker Studio need no billing account
 | Firestore | low | $0 | rewrite: meetings + agendas become documents, no joins, every list screen counted in reads |
 | Keep RDS on AWS, call it across clouds | +~20–40 ms per query us-central1 ↔ us-east-1, several queries per request; RDS would need a public endpoint | AWS's ≈ $14 + egress | none, but security groups opened to the internet |
 
-Chosen: **Cloud SQL, stopped outside use.** Spry's data is relational (an agenda belongs
+Target: **Cloud SQL, stopped outside use.** Spry's data is relational (an agenda belongs
 to a meeting) and the migrations already exist; saving the last ~$2 a month is not worth
 rewriting the data layer. Data load plan: run the Alembic migrations against the empty
 database (the container does it on start) — the AWS data is test data.
 
-What is deployed today, because of the prepayment: the frontend on Firebase calls the
-API on AWS. That is the "keep the database on AWS" row in practice: it works, and it is
-a migration state, not the target.
+What is deployed today, because of the prepayment: **Firestore**. It is the only database
+on GCP that runs with no billing account (Spark plan, 50 000 reads / 20 000 writes a day
+free), so the site on Firebase Hosting reads and writes Spry's meetings on Google Cloud.
+The price is the one the table above predicts, paid in a small way: `frontend/lib/firestore.ts`
+(about 100 lines) replaces the three API calls, an agenda is stored as one JSON string, the
+list is sorted in the browser, and `firestore.rules` do the validation the API did. Spry's
+two tables happen to fit documents well (an agenda belongs to exactly one meeting, there are
+no joins), which is why the rewrite stayed small; Cloud SQL stays the target because the
+backend, its migrations and future reports are SQL.
 
 ### E-mail
 
@@ -70,7 +76,8 @@ report job.
 
 ## Consequences
 
-- The frontend runs on both clouds; the API and data remain on AWS until billing is enabled.
+- The frontend runs on both clouds. On GCP the data is in Firestore today; the API and
+  Cloud SQL follow when billing is enabled (`gcp/`).
 - `gcp/` describes the full target (Cloud Run + Cloud SQL + Artifact Registry + Secret
   Manager + service accounts); `terraform -chdir=gcp plan` shows it, `apply` needs billing.
 - CORS on the AWS API must include `https://<project>.web.app`.

@@ -303,10 +303,19 @@ make infra-plan                # No changes. Your infrastructure matches the con
 
 Decisions: `docs/adr/0008-google-cloud.md`. Report and cost table: `docs/lab9-report.md`.
 
-**What runs where today.** Frontend: AWS (CloudFront) **and** Firebase Hosting
-(`https://spry-yulia-2026.web.app`). API, database, agenda parser: AWS. The GCP side of
-the API and database is described in `gcp/` but not applied — the GCP trial needs a
-$30 prepayment before Cloud Run / Cloud SQL can run.
+**What runs where today.** AWS: frontend (CloudFront), API, RDS, agenda parser.
+Google Cloud: frontend on Firebase Hosting (`https://spry-yulia-2026.web.app`) with the
+meetings in **Cloud Firestore** (free Spark plan). Cloud Run + Cloud SQL are described in
+`gcp/` but not applied — the GCP trial needs a $30 prepayment before they can run.
+
+**Firestore build** (no billing): create the Firestore database once in the Firebase
+console (Build → Firestore Database → Create, Standard edition, `us-central1`,
+production mode), then:
+
+```bash
+GCP_API_MODE=firestore make deploy-firebase          # site + firestore.rules
+node scripts/seed-firestore.mjs https://api.yulia-spry.xyz   # copy the meetings from AWS
+```
 
 **Deploy the frontend to Firebase** (free plan, no billing):
 

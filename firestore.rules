@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Lab 9: Spry's meetings on Cloud Firestore. There is no sign-in yet, so the
+// rules are as open as the AWS API is today - anyone may read and add - but
+// every write is validated, nothing can be deleted, and an existing meeting
+// can only get its agenda changed.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /meetings/{meetingId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['title', 'starts_at', 'ends_at', 'attendee_count', 'created_at', 'agenda_json'])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 200
+                    && request.resource.data.starts_at is timestamp
+                    && request.resource.data.ends_at is timestamp
+                    && request.resource.data.ends_at > request.resource.data.starts_at
+                    && request.resource.data.attendee_count is int
+                    && request.resource.data.attendee_count >= 1
+                    && request.resource.data.attendee_count <= 500;
+
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['agenda_json'])
+                    && request.resource.data.agenda_json is string
+                    && request.resource.data.agenda_json.size() <= 20000;
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

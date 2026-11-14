@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// firestore.ts imports the schemas below and uses them only inside functions,
+// so this cycle is safe as long as api.ts is the module the app imports.
+import { firestoreApi } from "@/lib/firestore";
+
 /** Browser code must reach the API through the published port; server components
  *  resolve the Compose service name instead. */
 export function apiBaseUrl(): string {
@@ -127,7 +131,7 @@ export type MeetingCreate = {
 
 /* --- endpoints --- */
 
-export const api = {
+const restApi = {
   readiness: () => request("/api/v1/health/ready", healthSchema),
 
   listMeetings: (params: { limit?: number; offset?: number } = {}) => {
@@ -150,3 +154,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 };
+
+/* Lab 9: the build on Firebase Hosting can read and write Cloud Firestore on
+ * Google Cloud instead of the API on AWS (NEXT_PUBLIC_DATA_SOURCE=firestore). */
+export const api: typeof restApi =
+  process.env.NEXT_PUBLIC_DATA_SOURCE === "firestore" ? firestoreApi : restApi;
